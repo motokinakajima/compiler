@@ -7,4 +7,6 @@ include_directories(src)
 
 add_executable(compiler
     src/main.cpp
-    src/main.h)
+    src/main.h
+        src/NodeParser.h
+)
