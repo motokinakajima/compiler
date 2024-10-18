@@ -6,30 +6,39 @@
 
 #include <iostream>
 #include "NodeParser.h"
+#include "CodeGenerator.h"
 
 int main() {
-    char input[] = "1 + 1 - 10 - 20 - 30 - 40 - 50 - 60 - 70 - 80 - 90";
+    char input[] = "2 + 1 + 1";
 
-    NodeParser parser(input);
-    Token *token = NodeParser::tokenize(input);
+    CodeGenerator codeGenerator;
 
-    long int result = NodeParser::expect_number(&token);
+    TokenParser parser;
+    Token *token = TokenParser::tokenize(input);
 
-    while (!NodeParser::at_eof(token)) {
-        if (NodeParser::consume(&token, '+')) {
-            result += NodeParser::expect_number(&token);
+    NodeParser nodeParser(*token);
+
+    codeGenerator.MOV("x0", std::to_string(TokenParser::expect_number(&token)).c_str());
+
+    while (!TokenParser::at_eof(token)) {
+        if (TokenParser::consume(&token, '+')) {
+            const long int current_number = TokenParser::expect_number(&token);
+            codeGenerator.ADD("x0", "x0", std::to_string(current_number).c_str());
             continue;
         }
 
-        if (NodeParser::consume(&token, '-')) {
-            result -= NodeParser::expect_number(&token);
+        if (TokenParser::consume(&token, '-')) {
+            const long int current_number = TokenParser::expect_number(&token);
+            codeGenerator.SUB("x0", "x0", std::to_string(current_number).c_str());
             continue;
         }
 
         throw std::runtime_error("unexpected token");
     }
 
-    std::cout << "Result: " << result << std::endl;
+    codeGenerator.RET();
+
+    std::cout<<codeGenerator.get_code();
 
     return 0;
 }

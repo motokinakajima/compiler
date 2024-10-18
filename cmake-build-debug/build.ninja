@@ -56,6 +56,13 @@ build CMakeFiles/compiler.dir/src/main.cpp.o: CXX_COMPILER__compiler_unscanned_D
   OBJECT_DIR = CMakeFiles/compiler.dir
   OBJECT_FILE_DIR = CMakeFiles/compiler.dir/src
 
+build CMakeFiles/compiler.dir/src/CodeGenerator.cpp.o: CXX_COMPILER__compiler_unscanned_Debug /Users/nakajimatsuyoshi/Downloads/compiler/src/CodeGenerator.cpp || cmake_object_order_depends_target_compiler
+  DEP_FILE = CMakeFiles/compiler.dir/src/CodeGenerator.cpp.o.d
+  FLAGS = -g -std=gnu++14 -arch arm64 -isysroot /Library/Developer/CommandLineTools/SDKs/MacOSX14.4.sdk -fcolor-diagnostics
+  INCLUDES = -I/Users/nakajimatsuyoshi/Downloads/compiler/src
+  OBJECT_DIR = CMakeFiles/compiler.dir
+  OBJECT_FILE_DIR = CMakeFiles/compiler.dir/src
+
 
 # =============================================================================
 # Link build statements for EXECUTABLE target compiler
@@ -64,7 +71,7 @@ build CMakeFiles/compiler.dir/src/main.cpp.o: CXX_COMPILER__compiler_unscanned_D
 #############################################
 # Link the executable compiler
 
-build compiler: CXX_EXECUTABLE_LINKER__compiler_Debug CMakeFiles/compiler.dir/src/main.cpp.o
+build compiler: CXX_EXECUTABLE_LINKER__compiler_Debug CMakeFiles/compiler.dir/src/main.cpp.o CMakeFiles/compiler.dir/src/CodeGenerator.cpp.o
   FLAGS = -g -arch arm64 -isysroot /Library/Developer/CommandLineTools/SDKs/MacOSX14.4.sdk
   OBJECT_DIR = CMakeFiles/compiler.dir
   POST_BUILD = :

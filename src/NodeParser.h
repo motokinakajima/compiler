@@ -16,6 +16,14 @@ enum TokenKind {
     TK_EOF,       // End of file
 };
 
+enum NodeKind {
+    ND_ADD,
+    ND_SUB,
+    ND_MUL,
+    ND_DIV,
+    ND_NUM,
+};
+
 class Token {
 public:
     TokenKind kind;
@@ -35,11 +43,9 @@ public:
     }
 };
 
-class NodeParser {
+class TokenParser {
 public:
-    explicit NodeParser(std::string input_string) {
-        this->input = std::move(input_string);
-    }
+    explicit TokenParser() = default;
 
     // Tokenize the input string and return the head of the token list
     static Token *tokenize(char *p) {
@@ -103,9 +109,80 @@ public:
     static bool at_eof(const Token *current) {
         return current->kind == TK_EOF;
     }
+};
+
+class Node {
+public:
+    Node() = default;
+
+    static Node *new_node(const NodeKind kind, Node *lhs, Node *rhs) {
+        auto *node = static_cast<Node *>(calloc(1, sizeof(Node)));
+        node->kind = kind;
+        node->lhs = lhs;
+        node->rhs = rhs;
+        return node;
+    }
+
+    static Node *new_node_num(const long int val) {
+        auto *node = static_cast<Node *>(calloc(1, sizeof(Node)));
+        node->kind = ND_NUM;
+        node->val = val;
+        return node;
+    }
+private:
+    NodeKind kind;
+    Node *lhs;
+    Node *rhs;
+    long int val;
+};
+
+class NodeParser {
+public:
+    explicit NodeParser(Token &token) : token(&token) {
+        result_node = expr();
+    }
+
+    Node *expr() {
+        Node *node = mul();
+
+        for(;;) {
+            if(TokenParser::consume(&token, '+')) {
+                node = Node::new_node(ND_ADD, node, mul());
+            }else if(TokenParser::consume(&token, '-')) {
+                node = Node::new_node(ND_SUB, node, mul());
+            }else {
+                return node;
+            }
+        }
+    }
+
+    Node *mul() {
+        Node *node = primary();
+
+        for(;;) {
+            if(TokenParser::consume(&token, '*')) {
+                node = Node::new_node(ND_ADD, node, mul());
+            }else if(TokenParser::consume(&token, '/')) {
+                node = Node::new_node(ND_SUB, node, mul());
+            }else {
+                return node;
+            }
+        }
+    }
+
+    Node *primary() {
+        if(TokenParser::consume(&token, '(')) {
+            Node *node = expr();
+            TokenParser::expect(&token, ')');
+            return node;
+        }
+
+        return Node::new_node_num(TokenParser::expect_number(&token));
+    }
 
 private:
-    std::string input;
+    Token *token = {};
+    Node *result_node;
 };
 
 #endif //NODEPARSER_H
