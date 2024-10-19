@@ -8,7 +8,7 @@
 #include <iostream>
 #include <cstdlib>
 #include <cctype>
-#include <string>
+#include "CodeGenerator.h"
 
 enum TokenKind {
     TK_RESERVED,  // Operators like + or -
@@ -59,7 +59,7 @@ public:
                 continue;
             }
 
-            if (*p == '+' || *p == '-') {
+            if (*p == '+' || *p == '-' || *p == '*' || *p == '/' || *p == '(' || *p == ')') {
                 cur = Token::new_token(TK_RESERVED, cur, p++);
                 continue;
             }
@@ -88,7 +88,6 @@ public:
 
     // Expect and consume a specific token, throwing an error if it's not found
     static void expect(Token **current, const char op) {
-        std::cout << "expect: " << op << " actual: " << (*current)->str << "\n";
         if ((*current)->kind != TK_RESERVED || (*current)->str[0] != op) {
             throw std::runtime_error("unexpected token");
         }
@@ -113,6 +112,11 @@ public:
 
 class Node {
 public:
+    NodeKind kind;
+    Node *lhs;
+    Node *rhs;
+    long int val;
+
     Node() = default;
 
     static Node *new_node(const NodeKind kind, Node *lhs, Node *rhs) {
@@ -129,17 +133,15 @@ public:
         node->val = val;
         return node;
     }
-private:
-    NodeKind kind;
-    Node *lhs;
-    Node *rhs;
-    long int val;
 };
 
 class NodeParser {
 public:
+    Node *node;
+    CodeGenerator codegen;
+
     explicit NodeParser(Token &token) : token(&token) {
-        result_node = expr();
+        node = expr();
     }
 
     Node *expr() {
@@ -157,17 +159,27 @@ public:
     }
 
     Node *mul() {
-        Node *node = primary();
+        Node *node = unary();
 
         for(;;) {
             if(TokenParser::consume(&token, '*')) {
-                node = Node::new_node(ND_ADD, node, mul());
+                node = Node::new_node(ND_MUL, node, mul());
             }else if(TokenParser::consume(&token, '/')) {
-                node = Node::new_node(ND_SUB, node, mul());
+                node = Node::new_node(ND_DIV, node, mul());
             }else {
                 return node;
             }
         }
+    }
+
+    Node *unary() {
+        if(TokenParser::consume(&token, '+')) {
+            return primary();
+        }
+        if(TokenParser::consume(&token, '-')) {
+            return Node::new_node(ND_SUB, Node::new_node_num(0), primary());
+        }
+        return primary();
     }
 
     Node *primary() {
@@ -180,9 +192,45 @@ public:
         return Node::new_node_num(TokenParser::expect_number(&token));
     }
 
+    void gen(const Node *node) {
+        if(node->kind == ND_NUM) {
+            this->codegen.SUB("sp", "sp", "16");
+            this->codegen.MOV("x3", std::to_string(node->val).c_str());
+            this->codegen.STR("x3", "sp", "0");
+            return;
+        }
+
+        gen(node->lhs);
+        gen(node->rhs);
+
+        this->codegen.LDR("x1", "sp", "0");
+        this->codegen.ADD("sp", "sp", "16");
+        this->codegen.LDR("x2", "sp", "0");
+        this->codegen.ADD("sp", "sp", "16");
+
+        switch(node->kind) {
+            case ND_ADD:
+                this->codegen.ADD("x1", "x2", "x1");
+                break;
+            case ND_SUB:
+                this->codegen.SUB("x1", "x2", "x1");
+                break;
+            case ND_MUL:
+                this->codegen.MUL("x1", "x2", "x1");
+                break;
+            case ND_DIV:
+                this->codegen.SDIV("x1", "x2", "x1");
+                break;
+            default:
+                break;
+        }
+
+        this->codegen.SUB("sp", "sp", "16");
+        this->codegen.STR("x1", "sp", "0");
+    }
+
 private:
     Token *token = {};
-    Node *result_node;
 };
 
 #endif //NODEPARSER_H

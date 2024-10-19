@@ -34,6 +34,16 @@ public:
         code += "sdiv " + std::string(return_resistor) + ", " + std::string(first_input) + ", " + std::string(second_input) + "\n";
     }
 
+    void STR(const char *return_resistor, const char *first_input, const char *second_input) {
+        code += "        ";
+        code += "str " + std::string(return_resistor) + ", [" + std::string(first_input) + ", " + std::string(second_input) + "]\n";
+    }
+
+    void LDR(const char *return_resistor, const char *first_input, const char *second_input) {
+        code += "        ";
+        code += "ldr " + std::string(return_resistor) + ", [" + std::string(first_input) + ", " + std::string(second_input) + "]\n";
+    }
+
     void MOV(const char *return_resistor, const char *value) {
         code += "        ";
         code += "mov " + std::string(return_resistor) + ", " + std::string(value) + "\n";
