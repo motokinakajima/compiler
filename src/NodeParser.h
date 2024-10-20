@@ -12,6 +12,7 @@
 
 enum TokenKind {
     TK_RESERVED,
+    TK_IDENT,
     TK_NUM,
     TK_EOF,
 };
@@ -21,6 +22,8 @@ enum NodeKind {
     ND_SUB,
     ND_MUL,
     ND_DIV,
+    ND_ASSIGN,
+    ND_LVAR,
     ND_EQ,
     ND_NE,
     ND_LT,
@@ -69,7 +72,7 @@ public:
                 continue;
             }
 
-            if (strchr("+-*/()<>", *p)) {
+            if (strchr("+-*/()<>=;", *p)) {
                 cur = Token::new_token(TK_RESERVED, cur, p++, 1);
                 continue;
             }
@@ -79,6 +82,11 @@ public:
                 const char *q = p;
                 cur->val = strtol(p, &p, 10);
                 cur->len = p - q;
+                continue;
+            }
+
+            if ('a' <= *p && *p <= 'z') {
+                cur = Token::new_token(TK_IDENT, cur, p++, 1);
                 continue;
             }
 
@@ -105,6 +113,15 @@ public:
         return true;
     }
 
+    static Token *consume_ident(Token **current) {
+        if((*current)->kind != TK_IDENT) {
+            return nullptr;
+        }
+        Token *prev = *current;
+        *current = (*current)->next;
+        return prev;
+    }
+
     static void expect(Token **current, const char *op) {
         if ((*current)->kind != TK_RESERVED || strlen(op) != (*current)->len || memcmp((*current)->str, &op, (*current)->len) == 0) {
             throw std::runtime_error("unexpected token");
@@ -112,7 +129,6 @@ public:
         *current = (*current)->next;
     }
 
-    // Expect and return a number token, or throw an error if the token is not a number
     static long int expect_number(Token **current) {
         if ((*current)->kind != TK_NUM) {
             throw std::runtime_error("expected number");
@@ -122,7 +138,6 @@ public:
         return val;
     }
 
-    // Check if the token is EOF
     static bool at_eof(const Token *current) {
         return current->kind == TK_EOF;
     }
@@ -138,6 +153,7 @@ public:
     Node *lhs;
     Node *rhs;
     long int val;
+    long int offset;
 
     Node() = default;
 
@@ -159,19 +175,46 @@ public:
         node->val = val;
         return node;
     }
+
+    static Node *new_ident(const char *str) {
+        auto *node = new_node(ND_LVAR);
+        node->offset = (str[0] - 'a' + 1) * 8;
+        return node;
+    }
 };
 
 class NodeParser {
 public:
-    Node *node;
     CodeGenerator codegen;
 
     explicit NodeParser(Token &token) : token(&token) {
-        node = expr();
+        program();
+    }
+
+    void program() {
+        int i = 0;
+        while(!TokenParser::at_eof(token)) {
+            code[i++] = stmt();
+        }
+        code[i] = nullptr;
+    }
+
+    Node *stmt() {
+        Node *node = expr();
+        TokenParser::expect(&token, ";");
+        return node;
     }
 
     Node *expr() {
-        return equality();
+        return assign();
+    }
+
+    Node *assign() {
+        Node *node = equality();
+        if(TokenParser::consume(&token, "=")) {
+            node = Node::new_binary(ND_ASSIGN, node, assign());
+        }
+        return node;
     }
 
     Node *equality() {
@@ -251,6 +294,12 @@ public:
             return node;
         }
 
+        const Token *tok = TokenParser::consume_ident(&token);
+        if(tok) {
+            Node *node = Node::new_ident(tok->str);
+            return node;
+        }
+
         return Node::new_num(TokenParser::expect_number(&token));
     }
 
@@ -309,6 +358,7 @@ public:
 
 private:
     Token *token = {};
+    Node *code[100];
 };
 
 #endif //NODEPARSER_H

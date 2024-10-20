@@ -9,13 +9,11 @@
 #include "CodeGenerator.h"
 
 int main() {
-    char input[] = "1>=2";
+    char input[] = "a = 1 + 2; b = 1;";
 
     Token *token = TokenParser::tokenize(input);
 
     NodeParser nodeParser(*token);
-
-    nodeParser.gen(nodeParser.node);
 
     nodeParser.codegen.MOV("x0", "x1");
     nodeParser.codegen.RET();
