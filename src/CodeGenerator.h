@@ -34,6 +34,16 @@ public:
         code += "sdiv " + std::string(return_resistor) + ", " + std::string(first_input) + ", " + std::string(second_input) + "\n";
     }
 
+    void CMP(const char *first_input, const char *second_input) {
+        code += "        ";
+        code += "cmp " + std::string(first_input) + ", " + std::string(second_input) + "\n";
+    }
+
+    void CSET(const char *return_resistor, const char * condition) {
+        code += "        ";
+        code += "cset " + std::string(return_resistor) + ", " + std::string(condition) + "\n";
+    }
+
     void STR(const char *return_resistor, const char *first_input, const char *second_input) {
         code += "        ";
         code += "str " + std::string(return_resistor) + ", [" + std::string(first_input) + ", " + std::string(second_input) + "]\n";

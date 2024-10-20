@@ -8,8 +8,8 @@
 #include "NodeParser.h"
 #include "CodeGenerator.h"
 
-int main(int argc, char *argv[]) {
-    char input[] = "-5 * (3 + 2) + 40";
+int main() {
+    char input[] = "1>=2";
 
     Token *token = TokenParser::tokenize(input);
 

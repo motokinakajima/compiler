@@ -11,9 +11,9 @@
 #include "CodeGenerator.h"
 
 enum TokenKind {
-    TK_RESERVED,  // Operators like + or -
-    TK_NUM,       // Numeric tokens
-    TK_EOF,       // End of file
+    TK_RESERVED,
+    TK_NUM,
+    TK_EOF,
 };
 
 enum NodeKind {
@@ -21,6 +21,10 @@ enum NodeKind {
     ND_SUB,
     ND_MUL,
     ND_DIV,
+    ND_EQ,
+    ND_NE,
+    ND_LT,
+    ND_LE,
     ND_NUM,
 };
 
@@ -28,16 +32,17 @@ class Token {
 public:
     TokenKind kind;
     Token *next;
-    long int val;  // If kind is TK_NUM, store the number
-    char *str;     // Token string (operator or number)
+    long int val;
+    char *str;
+    long int len;
 
     Token() = default;
 
-    // Helper to create a new token
-    static Token *new_token(const TokenKind kind, Token *cur, char *str) {
+    static Token *new_token(const TokenKind kind, Token *cur, char *str, int len) {
         auto *tok = static_cast<Token *>(calloc(1, sizeof(Token)));
         tok->kind = kind;
         tok->str = str;
+        tok->len = len;
         cur->next = tok;
         return tok;
     }
@@ -47,7 +52,6 @@ class TokenParser {
 public:
     explicit TokenParser() = default;
 
-    // Tokenize the input string and return the head of the token list
     static Token *tokenize(char *p) {
         Token head{};
         head.next = nullptr;
@@ -59,36 +63,50 @@ public:
                 continue;
             }
 
-            if (*p == '+' || *p == '-' || *p == '*' || *p == '/' || *p == '(' || *p == ')') {
-                cur = Token::new_token(TK_RESERVED, cur, p++);
+            if(starts_with(p, "==") || starts_with(p, "!=") || starts_with(p, "<=") || starts_with(p, ">=")) {
+                cur = Token::new_token(TK_RESERVED, cur, p, 2);
+                p += 2;
+                continue;
+            }
+
+            if (strchr("+-*/()<>", *p)) {
+                cur = Token::new_token(TK_RESERVED, cur, p++, 1);
                 continue;
             }
 
             if (isdigit(*p)) {
-                cur = Token::new_token(TK_NUM, cur, p);
+                cur = Token::new_token(TK_NUM, cur, p, 0);
+                const char *q = p;
                 cur->val = strtol(p, &p, 10);
+                cur->len = p - q;
                 continue;
             }
 
             throw std::runtime_error("cannot tokenize");
         }
 
-        Token::new_token(TK_EOF, cur, p);
-        return head.next;  // Return the head of the token list
+        Token::new_token(TK_EOF, cur, p, 0);
+        return head.next;
     }
 
-    // Consume a token of the expected kind
-    static bool consume(Token **current, const char op) {
-        if ((*current)->kind != TK_RESERVED || (*current)->str[0] != op) {
+    static bool consume(Token **current, const char *op) {
+        if((*current)->kind != TK_RESERVED) {
             return false;
         }
+        if(strlen(op) != (*current)->len) {
+            return false;
+        }
+        const int is_equal = memcmp((*current)->str, op, (*current)->len);
+        if(is_equal != 0) {
+            return false;
+        }
+
         *current = (*current)->next;
         return true;
     }
 
-    // Expect and consume a specific token, throwing an error if it's not found
-    static void expect(Token **current, const char op) {
-        if ((*current)->kind != TK_RESERVED || (*current)->str[0] != op) {
+    static void expect(Token **current, const char *op) {
+        if ((*current)->kind != TK_RESERVED || strlen(op) != (*current)->len || memcmp((*current)->str, &op, (*current)->len) == 0) {
             throw std::runtime_error("unexpected token");
         }
         *current = (*current)->next;
@@ -108,6 +126,10 @@ public:
     static bool at_eof(const Token *current) {
         return current->kind == TK_EOF;
     }
+
+    static bool starts_with(const char *p, const char *q) {
+        return memcmp(p, q, strlen(q)) == 0;
+    }
 };
 
 class Node {
@@ -119,17 +141,21 @@ public:
 
     Node() = default;
 
-    static Node *new_node(const NodeKind kind, Node *lhs, Node *rhs) {
+    static Node *new_node(const NodeKind kind) {
         auto *node = static_cast<Node *>(calloc(1, sizeof(Node)));
         node->kind = kind;
+        return node;
+    }
+
+    static Node *new_binary(const NodeKind kind, Node *lhs, Node *rhs) {
+        Node *node = new_node(kind);
         node->lhs = lhs;
         node->rhs = rhs;
         return node;
     }
 
-    static Node *new_node_num(const long int val) {
-        auto *node = static_cast<Node *>(calloc(1, sizeof(Node)));
-        node->kind = ND_NUM;
+    static Node *new_num(const long int val) {
+        auto *node = new_node(ND_NUM);
         node->val = val;
         return node;
     }
@@ -145,13 +171,49 @@ public:
     }
 
     Node *expr() {
+        return equality();
+    }
+
+    Node *equality() {
+        Node *node = relational();
+
+        for(;;) {
+            if(TokenParser::consume(&token, "==")) {
+                node = Node::new_binary(ND_EQ, node, relational());
+            }else if(TokenParser::consume(&token, "!=")) {
+                node = Node::new_binary(ND_NE, node, relational());
+            }else {
+                return node;
+            }
+        }
+    }
+
+    Node *relational() {
+        Node *node = add();
+
+        for(;;) {
+            if(TokenParser::consume(&token, "<")) {
+                node = Node::new_binary(NodeKind::ND_LT, node, add());
+            }else if(TokenParser::consume(&token, "<=")) {
+                node = Node::new_binary(NodeKind::ND_LE, node, add());
+            }else if(TokenParser::consume(&token, ">")) {
+                node = Node::new_binary(NodeKind::ND_LT, add(), node);
+            }else if(TokenParser::consume(&token, ">=")) {
+                node = Node::new_binary(NodeKind::ND_LE, add(), node);
+            }else {
+                return node;
+            }
+        }
+    }
+
+    Node *add() {
         Node *node = mul();
 
         for(;;) {
-            if(TokenParser::consume(&token, '+')) {
-                node = Node::new_node(ND_ADD, node, mul());
-            }else if(TokenParser::consume(&token, '-')) {
-                node = Node::new_node(ND_SUB, node, mul());
+            if(TokenParser::consume(&token, "+")) {
+                node = Node::new_binary(ND_ADD, node, mul());
+            }else if(TokenParser::consume(&token, "-")) {
+                node = Node::new_binary(ND_SUB, node, mul());
             }else {
                 return node;
             }
@@ -162,10 +224,10 @@ public:
         Node *node = unary();
 
         for(;;) {
-            if(TokenParser::consume(&token, '*')) {
-                node = Node::new_node(ND_MUL, node, mul());
-            }else if(TokenParser::consume(&token, '/')) {
-                node = Node::new_node(ND_DIV, node, mul());
+            if(TokenParser::consume(&token, "*")) {
+                node = Node::new_binary(ND_MUL, node, unary());
+            }else if(TokenParser::consume(&token, "/")) {
+                node = Node::new_binary(ND_DIV, node, unary());
             }else {
                 return node;
             }
@@ -173,23 +235,23 @@ public:
     }
 
     Node *unary() {
-        if(TokenParser::consume(&token, '+')) {
-            return primary();
+        if(TokenParser::consume(&token, "+")) {
+            return unary();
         }
-        if(TokenParser::consume(&token, '-')) {
-            return Node::new_node(ND_SUB, Node::new_node_num(0), primary());
+        if(TokenParser::consume(&token, "-")) {
+            return Node::new_binary(ND_SUB, Node::new_num(0), unary());
         }
         return primary();
     }
 
     Node *primary() {
-        if(TokenParser::consume(&token, '(')) {
+        if(TokenParser::consume(&token, "(")) {
             Node *node = expr();
-            TokenParser::expect(&token, ')');
+            TokenParser::expect(&token, ")");
             return node;
         }
 
-        return Node::new_node_num(TokenParser::expect_number(&token));
+        return Node::new_num(TokenParser::expect_number(&token));
     }
 
     void gen(const Node *node) {
@@ -220,6 +282,22 @@ public:
                 break;
             case ND_DIV:
                 this->codegen.SDIV("x1", "x2", "x1");
+                break;
+            case ND_EQ:
+                this->codegen.CMP("x2", "x1");
+                this->codegen.CSET("x1", "eq");
+                break;
+            case ND_NE:
+                this->codegen.CMP("x2", "x1");
+                this->codegen.CSET("x1", "ne");
+                break;
+            case ND_LT:
+                this->codegen.CMP("x2", "x1");
+                this->codegen.CSET("x1", "lt");
+                break;
+            case ND_LE:
+                this->codegen.CMP("x2", "x1");
+                this->codegen.CSET("x1", "le");
                 break;
             default:
                 break;
