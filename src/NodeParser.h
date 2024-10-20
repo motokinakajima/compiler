@@ -186,6 +186,7 @@ public:
 class NodeParser {
 public:
     CodeGenerator codegen;
+    Node *code[100];
 
     explicit NodeParser(Token &token) : token(&token) {
         program();
@@ -303,34 +304,56 @@ public:
         return Node::new_num(TokenParser::expect_number(&token));
     }
 
+    void gen_lval(const Node *node) {
+        if (node->kind != ND_LVAR) {
+            throw std::runtime_error("lval is not a variable");
+        }
+
+        this->codegen.MOV("x0", "x29");
+        this->codegen.SUB("x0", "x0", std::to_string(node->offset).c_str());
+        this->codegen.STR("x0", "sp", "-16");
+    }
+
     void gen(const Node *node) {
-        if(node->kind == ND_NUM) {
-            this->codegen.SUB("sp", "sp", "16");
-            this->codegen.MOV("x3", std::to_string(node->val).c_str());
-            this->codegen.STR("x3", "sp", "0");
-            return;
+        switch(node->kind) {
+            case ND_NUM:
+                this->codegen.MOV("x0", std::to_string(node->val).c_str());
+                this->codegen.STR("x0", "sp", "-16");
+                return;
+            case ND_LVAR:
+                gen_lval(node);
+                this->codegen.LDR("x0", "sp", "16");
+                this->codegen.LDR("x0", "x0");
+                this->codegen.STR("x0", "sp", "-16!");
+                return;
+            case ND_ASSIGN:
+                gen_lval(node->lhs);
+                gen(node->lhs);
+                this->codegen.LDR("x1", "sp", "16");
+                this->codegen.LDR("x0", "sp", "16");
+                this->codegen.STR("x1", "x0");
+                this->codegen.STR("x1", "sp", "-16!");
+                return;
         }
 
         gen(node->lhs);
         gen(node->rhs);
 
-        this->codegen.LDR("x1", "sp", "0");
-        this->codegen.ADD("sp", "sp", "16");
-        this->codegen.LDR("x2", "sp", "0");
-        this->codegen.ADD("sp", "sp", "16");
+        this->codegen.LDR("x1", "sp", "16");
+        this->codegen.LDR("x0", "sp", "16");
 
         switch(node->kind) {
             case ND_ADD:
-                this->codegen.ADD("x1", "x2", "x1");
+                this->codegen.ADD("x0", "x0", "x1");
                 break;
             case ND_SUB:
-                this->codegen.SUB("x1", "x2", "x1");
+                this->codegen.SUB("x0", "x0", "x1");
                 break;
             case ND_MUL:
-                this->codegen.MUL("x1", "x2", "x1");
+                this->codegen.MUL("x0", "x0", "x1");
                 break;
             case ND_DIV:
-                this->codegen.SDIV("x1", "x2", "x1");
+                this->codegen.SDIV("x0", "x0", "x1");
                 break;
             case ND_EQ:
                 this->codegen.CMP("x2", "x1");
@@ -352,13 +375,11 @@ public:
                 break;
         }
 
-        this->codegen.SUB("sp", "sp", "16");
-        this->codegen.STR("x1", "sp", "0");
+        this->codegen.STR("x0", "sp", "-16!");
     }
 
 private:
     Token *token = {};
-    Node *code[100];
 };
 
 #endif //NODEPARSER_H
