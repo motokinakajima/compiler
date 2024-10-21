@@ -41,7 +41,7 @@ public:
 
     Token() = default;
 
-    static Token *new_token(const TokenKind kind, Token *cur, char *str, int len) {
+    static Token *new_token(const TokenKind kind, Token *cur, char *str, const long int len) {
         auto *tok = static_cast<Token *>(calloc(1, sizeof(Token)));
         tok->kind = kind;
         tok->str = str;
@@ -85,8 +85,12 @@ public:
                 continue;
             }
 
-            if ('a' <= *p && *p <= 'z') {
-                cur = Token::new_token(TK_IDENT, cur, p++, 1);
+            if (isalpha(*p)) {
+                char *start = p;  // Start of the identifier
+                while (isalpha(*p)) {   // Loop until you hit a non-alphabet character
+                    p++;
+                }
+                cur = Token::new_token(TK_IDENT, cur, start, p - start);  // Create a new token with the full identifier
                 continue;
             }
 
@@ -183,10 +187,29 @@ public:
     }
 };
 
+class LVar {
+public:
+    mutable const LVar *next;
+    const char *name;
+    mutable long int len;
+    mutable long int offset;
+
+    LVar() = default;
+
+    static const LVar *find_lvar(const Token *tok, const LVar *head) {
+        for(const LVar *var = head; var; var = var->next) {
+            if(var->len == tok->len && !memcmp(tok->str, var->name, var->len)) {
+                return var;
+            }
+        }
+        return nullptr;
+    }
+};
+
 class NodeParser {
 public:
     CodeGenerator codegen;
-    Node *code[100];
+    Node *code[100]{};
 
     explicit NodeParser(Token &token) : token(&token) {
         program();
@@ -297,7 +320,19 @@ public:
 
         const Token *tok = TokenParser::consume_ident(&token);
         if(tok) {
-            Node *node = Node::new_ident(tok->str);
+            Node *node = Node::new_node(NodeKind::ND_LVAR);
+
+            const LVar *lvar = LVar::find_lvar(tok, this->locals);
+            if(lvar) {
+                node->offset = lvar->offset;
+            }else {
+                lvar = static_cast<LVar *>(calloc(1, sizeof(LVar)));
+                lvar->next = this->locals;
+                lvar->len = tok->len;
+                lvar->offset = this->locals->offset + 16;
+                node->offset = lvar->offset;
+                this->locals = lvar;
+            }
             return node;
         }
 
@@ -311,75 +346,85 @@ public:
 
         this->codegen.MOV("x0", "x29");
         this->codegen.SUB("x0", "x0", std::to_string(node->offset).c_str());
-        this->codegen.STR("x0", "sp", "-16");
+        this->codegen.PUSH("x0");
     }
 
     void gen(const Node *node) {
         switch(node->kind) {
             case ND_NUM:
                 this->codegen.MOV("x0", std::to_string(node->val).c_str());
-                this->codegen.STR("x0", "sp", "-16");
+                this->codegen.PUSH("x0");
                 return;
+
             case ND_LVAR:
-                gen_lval(node);
-                this->codegen.LDR("x0", "sp", "16");
-                this->codegen.LDR("x0", "x0");
-                this->codegen.STR("x0", "sp", "-16!");
+                gen_lval(node); // Generate the variable address
+                this->codegen.POP("x0");
+                this->codegen.LDR("x0", "x0"); // Load the value from the variable's address
+                this->codegen.PUSH("x0");
                 return;
+
             case ND_ASSIGN:
-                gen_lval(node->lhs);
-                gen(node->lhs);
-                this->codegen.LDR("x1", "sp", "16");
-                this->codegen.LDR("x0", "sp", "16");
-                this->codegen.STR("x1", "x0");
-                this->codegen.STR("x1", "sp", "-16!");
+                gen_lval(node->lhs); // Left-hand side is the variable
+                gen(node->rhs); // Right-hand side is the value to assign
+                this->codegen.POP("x1"); // The value to assign
+                this->codegen.POP("x0"); // The address of the variable
+                this->codegen.STR("x1", "x0"); // Store the value in the address
+                this->codegen.PUSH("x1"); // Push the result (assigned value) back to the stack
                 return;
+
+            default:
+                break;
         }
 
+        // Generate code for the left-hand side
         gen(node->lhs);
+        // Generate code for the right-hand side
         gen(node->rhs);
 
-        this->codegen.LDR("x1", "sp", "16");
-        this->codegen.LDR("x0", "sp", "16");
+        // Pop the right and left-hand side values from the stack
+        this->codegen.POP("x1");
+        this->codegen.POP("x0");
 
         switch(node->kind) {
             case ND_ADD:
                 this->codegen.ADD("x0", "x0", "x1");
-                break;
+            break;
             case ND_SUB:
                 this->codegen.SUB("x0", "x0", "x1");
-                break;
+            break;
             case ND_MUL:
                 this->codegen.MUL("x0", "x0", "x1");
-                break;
+            break;
             case ND_DIV:
                 this->codegen.SDIV("x0", "x0", "x1");
                 break;
             case ND_EQ:
-                this->codegen.CMP("x2", "x1");
-                this->codegen.CSET("x1", "eq");
+                this->codegen.CMP("x1", "x0");
+                this->codegen.CSET("x0", "eq");
                 break;
             case ND_NE:
-                this->codegen.CMP("x2", "x1");
-                this->codegen.CSET("x1", "ne");
+                this->codegen.CMP("x1", "x0");
+                this->codegen.CSET("x0", "ne");
                 break;
             case ND_LT:
-                this->codegen.CMP("x2", "x1");
-                this->codegen.CSET("x1", "lt");
+                this->codegen.CMP("x1", "x0");
+                this->codegen.CSET("x0", "lt");
                 break;
             case ND_LE:
-                this->codegen.CMP("x2", "x1");
-                this->codegen.CSET("x1", "le");
+                this->codegen.CMP("x1", "x0");
+                this->codegen.CSET("x0", "le");
                 break;
             default:
                 break;
         }
 
-        this->codegen.STR("x0", "sp", "-16!");
+        // Push the result of the operation back onto the stack
+        this->codegen.PUSH("x0");
     }
 
 private:
     Token *token = {};
+    const LVar *locals{};
 };
 
 #endif //NODEPARSER_H

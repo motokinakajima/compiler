@@ -62,6 +62,18 @@ public:
         code += "        ret\n";
     }
 
+    // Method to emulate PUSH
+    void PUSH(const char *value) {
+        code += "        sub sp, sp, #16\n"; // Decrement stack pointer
+        code += "        str " + std::string(value) + ", [sp]\n"; // Store value at stack pointer
+    }
+
+    // Method to emulate POP
+    void POP(const char *return_resistor) {
+        code += "        ldr " + std::string(return_resistor) + ", [sp]\n"; // Load value from stack pointer
+        code += "        add sp, sp, #16\n"; // Increment stack pointer
+    }
+
     std::string get_code() { return code; }
 
 private:
