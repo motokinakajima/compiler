@@ -196,8 +196,14 @@ public:
 
     LVar() = default;
 
+    static LVar *new_var() {
+        auto *lvar = static_cast<LVar *>(calloc(1, sizeof(LVar)));
+        lvar->offset = 0;
+        return lvar;
+    }
+
     static const LVar *find_lvar(const Token *tok, const LVar *head) {
-        for(const LVar *var = head; var; var = var->next) {
+        for(const LVar *var = head; var->name; var = var->next) {
             if(var->len == tok->len && !memcmp(tok->str, var->name, var->len)) {
                 return var;
             }
@@ -424,7 +430,7 @@ public:
 
 private:
     Token *token = {};
-    const LVar *locals{};
+    const LVar *locals = LVar::new_var();
 };
 
 #endif //NODEPARSER_H
