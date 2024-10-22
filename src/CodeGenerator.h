@@ -9,9 +9,15 @@
 
 class CodeGenerator {
 public:
-    CodeGenerator() {
-        code += ".global _main\n";
-        code += "_main:\n";
+    CodeGenerator() = default;
+
+    CodeGenerator(const std::string& label_name, const bool is_global) {
+        if(is_global) {
+            code += ".global _" + label_name + "\n";
+            code += "_" + label_name + ":\n";
+        }else {
+            code += label_name + ":\n";
+        }
     };
 
     void ADD(const char *return_resistor, const char *first_input, const char *second_input) {
@@ -56,6 +62,30 @@ public:
 
     void MOV(const char *return_resistor, const char *value) {
         code += "        mov " + std::string(return_resistor) + ", " + std::string(value) + "\n";
+    }
+
+    void B_EQ(const char* label) {
+        code += "        b.eq " + std::string(label) + "\n";
+    }
+
+    void B_NE(const char* label) {
+        code += "        b.ne " + std::string(label) + "\n";
+    }
+
+    void B_LT(const char* label) {
+        code += "        b.lt " + std::string(label) + "\n";
+    }
+
+    void B_LE(const char* label) {
+        code += "        b.le " + std::string(label) + "\n";
+    }
+
+    void B_GT(const char* label) {
+        code += "        b.gt " + std::string(label) + "\n";
+    }
+
+    void B_GE(const char* label) {
+        code += "        b.ge " + std::string(label) + "\n";
     }
 
     void RET() {

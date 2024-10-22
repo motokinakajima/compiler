@@ -26,6 +26,7 @@ enum NodeKind {
     ND_ASSIGN,
     ND_LVAR,
     ND_RETURN,
+    ND_IF,
     ND_EQ,
     ND_NE,
     ND_LT,
@@ -68,7 +69,7 @@ public:
                 continue;
             }
 
-            if(starts_with(p, "==") || starts_with(p, "!=") || starts_with(p, "<=") || starts_with(p, ">=")) {
+            if(starts_with(p, "==") || starts_with(p, "!=") || starts_with(p, "<=") || starts_with(p, ">=") || starts_with(p, "if") || starts_with(p, "else") || starts_with(p, "while") || starts_with(p, "for")) {
                 cur = Token::new_token(TK_RESERVED, cur, p, 2);
                 p += 2;
                 continue;
@@ -235,7 +236,9 @@ public:
 
 class NodeParser {
 public:
-    CodeGenerator codegen;
+    CodeGenerator main_func = CodeGenerator("main", true);
+    CodeGenerator labels[100];
+    std::string label_names[100];
     Node *code[100]{};
 
     explicit NodeParser(Token &token) : token(&token) {
@@ -252,6 +255,14 @@ public:
 
     Node *stmt() {
         Node *node;
+        if(TokenParser::consume(&token, "if")) {
+            TokenParser::expect(&token, "(");
+            node = Node::new_node(ND_IF);
+            node->lhs = expr();
+            TokenParser::expect(&token, ")");
+            node->rhs = stmt();
+            return node;
+        }
         if(TokenParser::consume(&token, TokenKind::TK_RETURN)) {
             node = Node::new_node(ND_RETURN);
             node->lhs = expr();
@@ -376,45 +387,58 @@ public:
         return Node::new_num(TokenParser::expect_number(&token));
     }
 
-    void gen_lval(const Node *node) {
+    void gen_lval(const Node *node, CodeGenerator &codegen) {
         if (node->kind != ND_LVAR) {
             throw std::runtime_error("lval is not a variable");
         }
 
-        this->codegen.MOV("x0", "x29");
-        this->codegen.SUB("x0", "x0", std::to_string(node->offset).c_str());
-        this->codegen.PUSH("x0");
+        codegen.MOV("x0", "x29");
+        codegen.SUB("x0", "x0", std::to_string(node->offset).c_str());
+        codegen.PUSH("x0");
     }
 
-    void gen(const Node *node) {
+    void gen(const Node *node, CodeGenerator &codegen) {
         switch(node->kind) {
+            case ND_IF: {
+                gen(node->lhs, this->main_func);
+                codegen.POP("x0");
+                codegen.CMP("x0", "1");
+                int i = 0;
+                for(;!label_names[i].empty();i++){}
+                label_names[i] = "label_" + std::to_string(i);
+                labels[i] = CodeGenerator(label_names[i], false);
+                codegen.B_EQ(label_names[i].c_str());
+                gen(node->rhs, this->labels[i]);
+                return;
+            }
+
             case ND_RETURN:
-                gen(node->lhs);
-                this->codegen.POP("x0");
-                this->codegen.MOV("sp", "x29");
-                this->codegen.POP("x29");
-                this->codegen.RET();
+                gen(node->lhs, this->main_func);
+                codegen.POP("x0");
+                codegen.MOV("sp", "x29");
+                codegen.POP("x29");
+                codegen.RET();
                 return;
 
             case ND_NUM:
-                this->codegen.MOV("x0", std::to_string(node->val).c_str());
-                this->codegen.PUSH("x0");
+                codegen.MOV("x0", std::to_string(node->val).c_str());
+                codegen.PUSH("x0");
                 return;
 
             case ND_LVAR:
-                gen_lval(node); // Generate the variable address
-                this->codegen.POP("x0");
-                this->codegen.LDR("x0", "x0"); // Load the value from the variable's address
-                this->codegen.PUSH("x0");
+                gen_lval(node, main_func); // Generate the variable address
+                codegen.POP("x0");
+                codegen.LDR("x0", "x0"); // Load the value from the variable's address
+                codegen.PUSH("x0");
                 return;
 
             case ND_ASSIGN:
-                gen_lval(node->lhs); // Left-hand side is the variable
-                gen(node->rhs); // Right-hand side is the value to assign
-                this->codegen.POP("x1"); // The value to assign
-                this->codegen.POP("x0"); // The address of the variable
-                this->codegen.STR("x1", "x0"); // Store the value in the address
-                this->codegen.PUSH("x1"); // Push the result (assigned value) back to the stack
+                gen_lval(node->lhs, this->main_func); // Left-hand side is the variable
+                gen(node->rhs, this->main_func); // Right-hand side is the value to assign
+                codegen.POP("x1"); // The value to assign
+                codegen.POP("x0"); // The address of the variable
+                codegen.STR("x1", "x0"); // Store the value in the address
+                codegen.PUSH("x1"); // Push the result (assigned value) back to the stack
                 return;
 
             default:
@@ -422,49 +446,57 @@ public:
         }
 
         // Generate code for the left-hand side
-        gen(node->lhs);
+        gen(node->lhs, this->main_func);
         // Generate code for the right-hand side
-        gen(node->rhs);
+        gen(node->rhs, this->main_func);
 
         // Pop the right and left-hand side values from the stack
-        this->codegen.POP("x1");
-        this->codegen.POP("x0");
+        codegen.POP("x1");
+        codegen.POP("x0");
 
         switch(node->kind) {
             case ND_ADD:
-                this->codegen.ADD("x0", "x0", "x1");
+                codegen.ADD("x0", "x0", "x1");
             break;
             case ND_SUB:
-                this->codegen.SUB("x0", "x0", "x1");
+                codegen.SUB("x0", "x0", "x1");
             break;
             case ND_MUL:
-                this->codegen.MUL("x0", "x0", "x1");
+                codegen.MUL("x0", "x0", "x1");
             break;
             case ND_DIV:
-                this->codegen.SDIV("x0", "x0", "x1");
+                codegen.SDIV("x0", "x0", "x1");
                 break;
             case ND_EQ:
-                this->codegen.CMP("x1", "x0");
-                this->codegen.CSET("x0", "eq");
+                codegen.CMP("x1", "x0");
+                codegen.CSET("x0", "eq");
                 break;
             case ND_NE:
-                this->codegen.CMP("x1", "x0");
-                this->codegen.CSET("x0", "ne");
+                codegen.CMP("x1", "x0");
+                codegen.CSET("x0", "ne");
                 break;
             case ND_LT:
-                this->codegen.CMP("x1", "x0");
-                this->codegen.CSET("x0", "lt");
+                codegen.CMP("x1", "x0");
+                codegen.CSET("x0", "lt");
                 break;
             case ND_LE:
-                this->codegen.CMP("x1", "x0");
-                this->codegen.CSET("x0", "le");
+                codegen.CMP("x1", "x0");
+                codegen.CSET("x0", "le");
                 break;
             default:
                 break;
         }
 
         // Push the result of the operation back onto the stack
-        this->codegen.PUSH("x0");
+        codegen.PUSH("x0");
+    }
+
+    std::string get_integrated_code() {
+        std::string code = this->main_func.get_code();
+        for(auto & label : labels) {
+            code += label.get_code();
+        }
+        return code;
     }
 
 private:
