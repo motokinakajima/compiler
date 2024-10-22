@@ -402,13 +402,13 @@ public:
             case ND_IF: {
                 gen(node->lhs, this->main_func);
                 codegen.POP("x0");
-                codegen.CMP("x0", "1");
+                codegen.CMP("x0", "0");
                 int i = 0;
                 for(;!label_names[i].empty();i++){}
                 label_names[i] = "label_" + std::to_string(i);
                 labels[i] = CodeGenerator(label_names[i], false);
                 codegen.B_EQ(label_names[i].c_str());
-                gen(node->rhs, this->labels[i]);
+                gen(node->rhs, this->main_func);
                 return;
             }
 

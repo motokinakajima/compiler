@@ -88,6 +88,10 @@ public:
         code += "        b.ge " + std::string(label) + "\n";
     }
 
+    void LABEL(const char* label) {
+        code += "        " + std::string(label) + ":\n";
+    }
+
     void RET() {
         code += "        ret\n";
     }
