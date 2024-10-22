@@ -27,6 +27,7 @@ enum NodeKind {
     ND_LVAR,
     ND_RETURN,
     ND_IF,
+    ND_ELSE,
     ND_EQ,
     ND_NE,
     ND_LT,
@@ -40,11 +41,11 @@ public:
     Token *next;
     long int val;
     char *str;
-    long int len;
+    unsigned long int len;
 
     Token() = default;
 
-    static Token *new_token(const TokenKind kind, Token *cur, char *str, const long int len) {
+    static Token *new_token(const TokenKind kind, Token *cur, char *str, const unsigned long int len) {
         auto *tok = static_cast<Token *>(calloc(1, sizeof(Token)));
         tok->kind = kind;
         tok->str = str;
@@ -53,6 +54,8 @@ public:
         return tok;
     }
 };
+
+std::string reserved[] = {"==", "!=", "<=", ">=", "if", "else", "+", "-", "*", "/", "(", ")", "<", ">", "=", ";"};
 
 class TokenParser {
 public:
@@ -69,16 +72,16 @@ public:
                 continue;
             }
 
-            if(starts_with(p, "==") || starts_with(p, "!=") || starts_with(p, "<=") || starts_with(p, ">=") || starts_with(p, "if") || starts_with(p, "else") || starts_with(p, "while") || starts_with(p, "for")) {
-                cur = Token::new_token(TK_RESERVED, cur, p, 2);
-                p += 2;
-                continue;
+            bool matched = false;
+            for(const auto & i : reserved) {
+                if(starts_with(p, i.c_str())) {
+                    cur = Token::new_token(TK_RESERVED, cur, p, strlen(i.c_str()));
+                    p += strlen(i.c_str());
+                    matched = true;
+                    break;
+                }
             }
-
-            if (strchr("+-*/()<>=;", *p)) {
-                cur = Token::new_token(TK_RESERVED, cur, p++, 1);
-                continue;
-            }
+            if(matched) { continue; }
 
             if (isdigit(*p)) {
                 cur = Token::new_token(TK_NUM, cur, p, 0);
@@ -213,7 +216,7 @@ class LVar {
 public:
     mutable const LVar *next;
     mutable char *name;
-    mutable long int len;
+    mutable unsigned long int len;
     mutable long int offset;
 
     LVar() = default;
@@ -257,10 +260,17 @@ public:
         Node *node;
         if(TokenParser::consume(&token, "if")) {
             TokenParser::expect(&token, "(");
-            node = Node::new_node(ND_IF);
+            node = Node::new_node(NodeKind::ND_IF);
             node->lhs = expr();
             TokenParser::expect(&token, ")");
-            node->rhs = stmt();
+            Node *if_stmt = stmt();
+            if(TokenParser::consume(&token, "else")) {
+                node->rhs = Node::new_node(NodeKind::ND_ELSE);
+                node->rhs->lhs = if_stmt;
+                node->rhs->rhs = stmt();
+            }else {
+                node->rhs = if_stmt;
+            }
             return node;
         }
         if(TokenParser::consume(&token, TokenKind::TK_RETURN)) {
@@ -387,7 +397,7 @@ public:
         return Node::new_num(TokenParser::expect_number(&token));
     }
 
-    void gen_lval(const Node *node, CodeGenerator &codegen) {
+    static void gen_lval(const Node *node, CodeGenerator &codegen) {
         if (node->kind != ND_LVAR) {
             throw std::runtime_error("lval is not a variable");
         }
@@ -403,12 +413,32 @@ public:
                 gen(node->lhs, this->main_func);
                 codegen.POP("x0");
                 codegen.CMP("x0", "0");
-                int i = 0;
-                for(;!label_names[i].empty();i++){}
-                label_names[i] = "label_" + std::to_string(i);
-                labels[i] = CodeGenerator(label_names[i], false);
-                codegen.B_EQ(label_names[i].c_str());
-                gen(node->rhs, this->main_func);
+                if(node->rhs->kind == ND_ELSE) {
+                    int i = 0;
+                    for(;!label_names[i].empty();i++){}
+                    label_names[i] = "Lelse_" + std::to_string(i);
+                    labels[i] = CodeGenerator(label_names[i], false);
+
+                    codegen.B_EQ(label_names[i].c_str());
+                    gen(node->rhs->lhs, this->main_func);
+
+                    int j = 0;
+                    for(;!label_names[j].empty();j++){}
+                    label_names[j] = "Lend_" + std::to_string(j);
+                    labels[j] = CodeGenerator(label_names[j], false);
+
+                    codegen.B(label_names[j].c_str());
+
+                    gen(node->rhs->rhs, this->labels[i]);
+                }else {
+                    int i = 0;
+                    for(;!label_names[i].empty();i++){}
+                    label_names[i] = "Lend_" + std::to_string(i);
+                    labels[i] = CodeGenerator(label_names[i], false);
+
+                    codegen.B_EQ(label_names[i].c_str());
+                    gen(node->rhs, this->main_func);
+                }
                 return;
             }
 
