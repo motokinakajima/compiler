@@ -9,7 +9,7 @@
 #include "CodeGenerator.h"
 
 int main() {
-    char input[] = "a = 4 - 2; b = 2;a == b;";
+    char input[] = "abs = 5 - 2; b = 8;abs == b;b = abs; return b; a = 1;";
 
     Token *token = TokenParser::tokenize(input);
 
@@ -24,9 +24,6 @@ int main() {
         nodeParser.gen(nodeParser.code[i]);
         nodeParser.codegen.POP("x0");
     }
-    nodeParser.codegen.MOV("sp", "x29");
-    nodeParser.codegen.POP("x29");
-    nodeParser.codegen.RET();
 
     std::cout<<nodeParser.codegen.get_code() <<std::endl;
 

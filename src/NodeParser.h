@@ -12,6 +12,7 @@
 
 enum TokenKind {
     TK_RESERVED,
+    TK_RETURN,
     TK_IDENT,
     TK_NUM,
     TK_EOF,
@@ -24,6 +25,7 @@ enum NodeKind {
     ND_DIV,
     ND_ASSIGN,
     ND_LVAR,
+    ND_RETURN,
     ND_EQ,
     ND_NE,
     ND_LT,
@@ -85,6 +87,12 @@ public:
                 continue;
             }
 
+            if (strncmp(p, "return", 6) == 0 && !is_alnum(p[6])) {
+                cur = Token::new_token(TK_RETURN, cur, p, 6);
+                p += 6;
+                continue;
+            }
+
             if (isalpha(*p)) {
                 char *start = p;  // Start of the identifier
                 while (isalpha(*p)) {   // Loop until you hit a non-alphabet character
@@ -110,6 +118,15 @@ public:
         }
         const int is_equal = memcmp((*current)->str, op, (*current)->len);
         if(is_equal != 0) {
+            return false;
+        }
+
+        *current = (*current)->next;
+        return true;
+    }
+
+    static bool consume(Token **current, const TokenKind kind) {
+        if((*current)->kind != kind) {
             return false;
         }
 
@@ -148,6 +165,10 @@ public:
 
     static bool starts_with(const char *p, const char *q) {
         return memcmp(p, q, strlen(q)) == 0;
+    }
+
+    static bool is_alnum(const char c) {
+        return ('a' <= c && c <= 'z') || ('A' <= c && c <= 'Z') || ('0' <= c && c <= '9') || (c == '_');
     }
 };
 
@@ -190,7 +211,7 @@ public:
 class LVar {
 public:
     mutable const LVar *next;
-    const char *name;
+    mutable char *name;
     mutable long int len;
     mutable long int offset;
 
@@ -203,7 +224,7 @@ public:
     }
 
     static const LVar *find_lvar(const Token *tok, const LVar *head) {
-        for(const LVar *var = head; var->name; var = var->next) {
+        for(const LVar *var = head; var->next && var->name && var->len != 0 && var->offset != 0; var = var->next) {
             if(var->len == tok->len && !memcmp(tok->str, var->name, var->len)) {
                 return var;
             }
@@ -230,8 +251,17 @@ public:
     }
 
     Node *stmt() {
-        Node *node = expr();
-        TokenParser::expect(&token, ";");
+        Node *node;
+        if(TokenParser::consume(&token, TokenKind::TK_RETURN)) {
+            node = Node::new_node(ND_RETURN);
+            node->lhs = expr();
+        }else {
+            node = expr();
+        }
+
+        if(!TokenParser::consume(&token, ";")) {
+            throw std::runtime_error("unexpected token");
+        }
         return node;
     }
 
@@ -334,6 +364,7 @@ public:
             }else {
                 lvar = static_cast<LVar *>(calloc(1, sizeof(LVar)));
                 lvar->next = this->locals;
+                lvar->name = tok->str;
                 lvar->len = tok->len;
                 lvar->offset = this->locals->offset + 16;
                 node->offset = lvar->offset;
@@ -357,6 +388,14 @@ public:
 
     void gen(const Node *node) {
         switch(node->kind) {
+            case ND_RETURN:
+                gen(node->lhs);
+                this->codegen.POP("x0");
+                this->codegen.MOV("sp", "x29");
+                this->codegen.POP("x29");
+                this->codegen.RET();
+                return;
+
             case ND_NUM:
                 this->codegen.MOV("x0", std::to_string(node->val).c_str());
                 this->codegen.PUSH("x0");
