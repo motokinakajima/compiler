@@ -411,6 +411,7 @@ public:
         switch(node->kind) {
             case ND_IF: {
                 gen(node->lhs, this->main_func);
+                codegen.COMMENT("if clause start");
                 codegen.POP("x0");
                 codegen.CMP("x0", "0");
                 if(node->rhs->kind == ND_ELSE) {
@@ -439,15 +440,18 @@ public:
                     codegen.B_EQ(label_names[i].c_str());
                     gen(node->rhs, this->main_func);
                 }
+                codegen.COMMENT("if clause end");
                 return;
             }
 
             case ND_RETURN:
                 gen(node->lhs, this->main_func);
+                codegen.COMMENT("return start");
                 codegen.POP("x0");
                 codegen.MOV("sp", "x29");
                 codegen.POP("x29");
                 codegen.RET();
+                codegen.COMMENT("return end");
                 return;
 
             case ND_NUM:
@@ -465,10 +469,12 @@ public:
             case ND_ASSIGN:
                 gen_lval(node->lhs, this->main_func); // Left-hand side is the variable
                 gen(node->rhs, this->main_func); // Right-hand side is the value to assign
+                codegen.COMMENT("assign start");
                 codegen.POP("x1"); // The value to assign
                 codegen.POP("x0"); // The address of the variable
                 codegen.STR("x1", "x0"); // Store the value in the address
                 codegen.PUSH("x1"); // Push the result (assigned value) back to the stack
+                codegen.COMMENT("assign end");
                 return;
 
             default:
