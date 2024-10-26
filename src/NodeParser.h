@@ -402,9 +402,11 @@ public:
             throw std::runtime_error("lval is not a variable");
         }
 
+        codegen.COMMENT("generate lval address start");
         codegen.MOV("x0", "x29");
         codegen.SUB("x0", "x0", std::to_string(node->offset).c_str());
         codegen.PUSH("x0");
+        codegen.COMMENT("generate lval address end");
     }
 
     void gen(const Node *node, CodeGenerator &codegen) {
@@ -461,9 +463,11 @@ public:
 
             case ND_LVAR:
                 gen_lval(node, main_func); // Generate the variable address
+                codegen.COMMENT("load value start");
                 codegen.POP("x0");
                 codegen.LDR("x0", "x0"); // Load the value from the variable's address
                 codegen.PUSH("x0");
+                codegen.COMMENT("load value end");
                 return;
 
             case ND_ASSIGN:
