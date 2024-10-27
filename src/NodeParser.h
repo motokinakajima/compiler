@@ -28,6 +28,7 @@ enum NodeKind {
     ND_RETURN,
     ND_IF,
     ND_ELSE,
+    ND_WHILE,
     ND_EQ,
     ND_NE,
     ND_LT,
@@ -55,7 +56,7 @@ public:
     }
 };
 
-std::string reserved[] = {"==", "!=", "<=", ">=", "if", "else", "+", "-", "*", "/", "(", ")", "<", ">", "=", ";"};
+std::string reserved[] = {"==", "!=", "<=", ">=", "if", "else", "while", "+", "-", "*", "/", "(", ")", "<", ">", "=", ";"};
 
 class TokenParser {
 public:
@@ -273,6 +274,14 @@ public:
             }
             return node;
         }
+        if(TokenParser::consume(&token, "while")) {
+            TokenParser::expect(&token, "(");
+            node = Node::new_node(NodeKind::ND_WHILE);
+            node->lhs = expr();
+            TokenParser::expect(&token, ")");
+            node->rhs = stmt();
+            return node;
+        }
         if(TokenParser::consume(&token, TokenKind::TK_RETURN)) {
             node = Node::new_node(ND_RETURN);
             node->lhs = expr();
@@ -419,11 +428,10 @@ public:
                 if(node->rhs->kind == ND_ELSE) {
                     int i = 0;
                     for(;!label_names[i].empty();i++){}
-                    label_names[i] = "Lelse_" + std::to_string(i);
+                    label_names[i] = ".Lelse_" + std::to_string(i);
                     int j = 0;
                     for(;!label_names[j].empty();j++){}
-                    label_names[j] = "Lend_" + std::to_string(j);
-
+                    label_names[j] = ".Lend_" + std::to_string(j);
                     codegen.B_EQ(label_names[i].c_str());
                     gen(node->rhs->lhs, this->main_func);
                     codegen.B(label_names[j].c_str());
@@ -433,14 +441,31 @@ public:
                 }else {
                     int i = 0;
                     for(;!label_names[i].empty();i++){}
-                    label_names[i] = "Lend_" + std::to_string(i);
-
+                    label_names[i] = ".Lend_" + std::to_string(i);
                     codegen.B_EQ(label_names[i].c_str());
                     gen(node->rhs, this->main_func);
                     codegen.LABEL(label_names[i].c_str());
                 }
                 codegen.COMMENT("if clause end");
                 return;
+            }
+
+            case ND_WHILE: {
+                int i = 0;
+                for(;!label_names[i].empty();i++){}
+                label_names[i] = ".Lbegin_" + std::to_string(i);
+                int j = 0;
+                for(;!label_names[j].empty();j++){}
+                label_names[j] = ".Lend_" + std::to_string(j);
+                codegen.COMMENT("while clause start");
+                codegen.LABEL(label_names[i].c_str());
+                gen(node->rhs->lhs, this->main_func);
+                codegen.POP("x0");
+                codegen.CMP("x0", "0");
+                codegen.B_EQ(label_names[j].c_str());
+                gen(node->rhs->rhs, this->main_func);
+                codegen.B(label_names[i].c_str());
+                codegen.LABEL(label_names[j].c_str());
             }
 
             case ND_RETURN:
