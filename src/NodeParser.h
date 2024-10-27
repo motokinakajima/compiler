@@ -425,12 +425,7 @@ public:
                     codegen.B_EQ(label_names[i].c_str());
                     gen(node->rhs->lhs, this->main_func);
 
-                    int j = 0;
-                    for(;!label_names[j].empty();j++){}
-                    label_names[j] = "Lend_" + std::to_string(j);
-                    labels[j] = CodeGenerator(label_names[j], false);
-
-                    codegen.B(label_names[j].c_str());
+                    codegen.B("Lcleanup");
 
                     gen(node->rhs->rhs, this->labels[i]);
                 }else {
@@ -441,8 +436,11 @@ public:
 
                     codegen.B_EQ(label_names[i].c_str());
                     gen(node->rhs, this->main_func);
+
+                    codegen.B("Lcleanup");
                 }
                 codegen.COMMENT("if clause end");
+                codegen.LABEL("Lcleanup");
                 return;
             }
 
@@ -536,6 +534,7 @@ public:
         for(auto & label : labels) {
             code += label.get_code();
         }
+        code += "Lcleanup:\n        ldr x29, [sp]\n        add sp, sp, #16\n        add sp, sp, 256\n        ret\n";
         return code;
     }
 
