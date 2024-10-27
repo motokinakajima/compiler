@@ -425,15 +425,10 @@ public:
                     label_names[j] = "Lend_" + std::to_string(j);
 
                     codegen.B_EQ(label_names[i].c_str());
-
                     gen(node->rhs->lhs, this->main_func);
-
                     codegen.B(label_names[j].c_str());
-
                     codegen.LABEL(label_names[i].c_str());
-
-                    gen(node->rhs->rhs, this->labels[i]);
-
+                    gen(node->rhs->rhs, this->main_func);
                     codegen.LABEL(label_names[j].c_str());
                 }else {
                     int i = 0;
