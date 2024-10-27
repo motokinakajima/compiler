@@ -102,18 +102,18 @@ public:
 
     // Method to emulate PUSH
     void PUSH(const char *value) {
-        COMMENT("PUSH START");
+        //COMMENT("PUSH START");
         code += "        sub sp, sp, #16\n"; // Decrement stack pointer
         code += "        str " + std::string(value) + ", [sp]\n"; // Store value at stack pointer
-        COMMENT("PUSH END");
+        //COMMENT("PUSH END");
     }
 
     // Method to emulate POP
     void POP(const char *return_resistor) {
-        COMMENT("POP START");
+        //COMMENT("POP START");
         code += "        ldr " + std::string(return_resistor) + ", [sp]\n"; // Load value from stack pointer
         code += "        add sp, sp, #16\n"; // Increment stack pointer
-        COMMENT("POP END");
+        //COMMENT("POP END");
     }
 
     void COMMENT(const char *comment) {
