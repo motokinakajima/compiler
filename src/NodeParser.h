@@ -261,12 +261,12 @@ public:
         Node *node;
         if(TokenParser::consume(&token, "if")) {
             TokenParser::expect(&token, "(");
-            node = Node::new_node(NodeKind::ND_IF);
+            node = Node::new_node(ND_IF);
             node->lhs = expr();
             TokenParser::expect(&token, ")");
             Node *if_stmt = stmt();
             if(TokenParser::consume(&token, "else")) {
-                node->rhs = Node::new_node(NodeKind::ND_ELSE);
+                node->rhs = Node::new_node(ND_ELSE);
                 node->rhs->lhs = if_stmt;
                 node->rhs->rhs = stmt();
             }else {
@@ -276,7 +276,7 @@ public:
         }
         if(TokenParser::consume(&token, "while")) {
             TokenParser::expect(&token, "(");
-            node = Node::new_node(NodeKind::ND_WHILE);
+            node = Node::new_node(ND_WHILE);
             node->lhs = expr();
             TokenParser::expect(&token, ")");
             node->rhs = stmt();
@@ -288,7 +288,6 @@ public:
         }else {
             node = expr();
         }
-
         if(!TokenParser::consume(&token, ";")) {
             throw std::runtime_error("unexpected token");
         }
@@ -326,13 +325,13 @@ public:
 
         for(;;) {
             if(TokenParser::consume(&token, "<")) {
-                node = Node::new_binary(NodeKind::ND_LT, node, add());
+                node = Node::new_binary(ND_LT, node, add());
             }else if(TokenParser::consume(&token, "<=")) {
-                node = Node::new_binary(NodeKind::ND_LE, node, add());
+                node = Node::new_binary(ND_LE, node, add());
             }else if(TokenParser::consume(&token, ">")) {
-                node = Node::new_binary(NodeKind::ND_LT, add(), node);
+                node = Node::new_binary(ND_LT, add(), node);
             }else if(TokenParser::consume(&token, ">=")) {
-                node = Node::new_binary(NodeKind::ND_LE, add(), node);
+                node = Node::new_binary(ND_LE, add(), node);
             }else {
                 return node;
             }
@@ -386,7 +385,7 @@ public:
 
         const Token *tok = TokenParser::consume_ident(&token);
         if(tok) {
-            Node *node = Node::new_node(NodeKind::ND_LVAR);
+            Node *node = Node::new_node(ND_LVAR);
 
             const LVar *lvar = LVar::find_lvar(tok, this->locals);
             if(lvar) {
@@ -466,6 +465,8 @@ public:
                 gen(node->rhs->rhs, this->main_func);
                 codegen.B(label_names[i].c_str());
                 codegen.LABEL(label_names[j].c_str());
+                codegen.COMMENT("while clause end");
+                return;
             }
 
             case ND_RETURN:
@@ -530,19 +531,19 @@ public:
                 codegen.SDIV("x0", "x0", "x1");
                 break;
             case ND_EQ:
-                codegen.CMP("x1", "x0");
+                codegen.CMP("x0", "x1");
                 codegen.CSET("x0", "eq");
                 break;
             case ND_NE:
-                codegen.CMP("x1", "x0");
+                codegen.CMP("x0", "x1");
                 codegen.CSET("x0", "ne");
                 break;
             case ND_LT:
-                codegen.CMP("x1", "x0");
+                codegen.CMP("x0", "x1");
                 codegen.CSET("x0", "lt");
                 break;
             case ND_LE:
-                codegen.CMP("x1", "x0");
+                codegen.CMP("x0", "x1");
                 codegen.CSET("x0", "le");
                 break;
             default:

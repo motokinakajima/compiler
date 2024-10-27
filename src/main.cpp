@@ -9,7 +9,7 @@
 #include "CodeGenerator.h"
 
 int main() {
-    char input[] = "a = 3;while(a<10)a=a+1;return a;";
+    char input[] = "a = 3;if(a == 3)a = a - 1;return a;";
 
     Token *token = TokenParser::tokenize(input);
 
