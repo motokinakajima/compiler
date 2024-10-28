@@ -458,11 +458,11 @@ public:
                 label_names[j] = ".Lend_" + std::to_string(j);
                 codegen.COMMENT("while clause start");
                 codegen.LABEL(label_names[i].c_str());
-                gen(node->rhs->lhs, this->main_func);
+                gen(node->lhs, this->main_func);
                 codegen.POP("x0");
                 codegen.CMP("x0", "0");
                 codegen.B_EQ(label_names[j].c_str());
-                gen(node->rhs->rhs, this->main_func);
+                gen(node->rhs, this->main_func);
                 codegen.B(label_names[i].c_str());
                 codegen.LABEL(label_names[j].c_str());
                 codegen.COMMENT("while clause end");
