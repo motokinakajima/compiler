@@ -420,8 +420,8 @@ public:
     void gen(const Node *node, CodeGenerator &codegen) {
         switch(node->kind) {
             case ND_IF: {
-                gen(node->lhs, this->main_func);
                 codegen.COMMENT("if clause start");
+                gen(node->lhs, this->main_func);
                 codegen.POP("x0");
                 codegen.CMP("x0", "0");
                 if(node->rhs->kind == ND_ELSE) {
@@ -470,8 +470,8 @@ public:
             }
 
             case ND_RETURN:
-                gen(node->lhs, this->main_func);
                 codegen.COMMENT("return start");
+                gen(node->lhs, this->main_func);
                 codegen.POP("x0");
                 codegen.MOV("sp", "x29");
                 codegen.POP("x29");
@@ -485,8 +485,8 @@ public:
                 return;
 
             case ND_LVAR:
-                gen_lval(node, main_func); // Generate the variable address
                 codegen.COMMENT("load value start");
+                gen_lval(node, main_func); // Generate the variable address
                 codegen.POP("x0");
                 codegen.LDR("x0", "x0"); // Load the value from the variable's address
                 codegen.PUSH("x0");

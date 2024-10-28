@@ -9,7 +9,7 @@
 #include "CodeGenerator.h"
 
 int main() {
-    char input[] = "a = 3;if(a == 3)a = a - 1;return a;";
+    char input[] = "if(0) return 1;else return 4;";
 
     Token *token = TokenParser::tokenize(input);
 
@@ -18,7 +18,7 @@ int main() {
     //nodeParser.codegen.MOV("x29", "xzr");
     nodeParser.main_func.PUSH("x29");
     nodeParser.main_func.MOV("x29", "sp");
-    nodeParser.main_func.SUB("sp", "sp", "208");
+    nodeParser.main_func.SUB("sp", "sp", "256");
 
     for(int i = 0; nodeParser.code[i]; i++) {
         nodeParser.gen(nodeParser.code[i], nodeParser.main_func);
