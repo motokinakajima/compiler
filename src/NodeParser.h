@@ -205,12 +205,6 @@ public:
         node->val = val;
         return node;
     }
-
-    static Node *new_ident(const char *str) {
-        auto *node = new_node(ND_LVAR);
-        node->offset = (str[0] - 'a' + 1) * 8;
-        return node;
-    }
 };
 
 class LVar {
