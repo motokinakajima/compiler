@@ -5,11 +5,30 @@
 #include "main.h"
 
 #include <iostream>
+#include <fstream>
+#include <iterator>
 #include "NodeParser.h"
 #include "CodeGenerator.h"
 
-int main() {
-    char input[] = "a = 0;while(a < 4) {a = a + 7;}b = a + 1; return b;";
+int main(int argc, char *argv[]) {
+    if (argc < 2) {
+        std::cerr << "Usage: " << argv[0] << " <file_path>" << std::endl;
+        return 1;
+    }
+
+    std::ifstream file(argv[1]);
+
+    if (!file.is_open()) {
+        std::cerr << "Error: Could not open file " << argv[1] << std::endl;
+        return 1;
+    }
+
+
+    std::string content((std::istreambuf_iterator<char>(file)),std::istreambuf_iterator<char>());
+
+    char *input = new char[content.size() + 1];
+    std::copy(content.begin(), content.end(), input);
+    input[content.size()] = '\0';
 
     Token *token = TokenParser::tokenize(input);
 
