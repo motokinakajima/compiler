@@ -16,21 +16,30 @@ int main(int argc, char *argv[]) {
         return 1;
     }
 
-    std::ifstream file(argv[1]);
+    std::string outputFile = "out.s";
+    std::string inputFile;
 
-    if (!file.is_open()) {
-        std::cerr << "Error: Could not open file " << argv[1] << std::endl;
+    for (int i = 1; i < argc; ++i) {
+        if (std::string(argv[i]) == "-o" && i + 1 < argc) {
+            outputFile = argv[++i];
+        } else {
+            inputFile = argv[i];
+        }
+    }
+
+    std::ifstream input(inputFile);
+    if (!input.is_open()) {
+        std::cerr << "Error: Could not open input file " << inputFile << std::endl;
         return 1;
     }
 
+    std::string code((std::istreambuf_iterator<char>(input)), std::istreambuf_iterator<char>());
+    input.close();
 
-    std::string content((std::istreambuf_iterator<char>(file)),std::istreambuf_iterator<char>());
+    std::vector<char> mutable_code(code.begin(), code.end());
+    mutable_code.push_back('\0');
 
-    char *input = new char[content.size() + 1];
-    std::copy(content.begin(), content.end(), input);
-    input[content.size()] = '\0';
-
-    Token *token = TokenParser::tokenize(input);
+    Token *token = TokenParser::tokenize(mutable_code.data());
 
     NodeParser nodeParser(*token);
 
@@ -44,7 +53,13 @@ int main(int argc, char *argv[]) {
         nodeParser.main_func.POP("x0");
     }
 
-    std::cout<< nodeParser.get_integrated_code() <<std::endl;
+    std::ofstream output(outputFile);
+    if (!output.is_open()) {
+        std::cerr << "Error: Could not open output file " << outputFile << std::endl;
+        return 1;
+    }
+    output << nodeParser.get_integrated_code();
+    output.close();
 
     return 0;
 }
