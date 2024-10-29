@@ -8,6 +8,7 @@
 #include <iostream>
 #include <cstdlib>
 #include <cctype>
+#include <vector>
 #include "CodeGenerator.h"
 
 enum TokenKind {
@@ -29,6 +30,7 @@ enum NodeKind {
     ND_IF,
     ND_ELSE,
     ND_WHILE,
+    ND_BLOCK,
     ND_EQ,
     ND_NE,
     ND_LT,
@@ -56,7 +58,7 @@ public:
     }
 };
 
-std::string reserved[] = {"==", "!=", "<=", ">=", "if", "else", "while", "+", "-", "*", "/", "(", ")", "<", ">", "=", ";"};
+std::string reserved[] = {"==", "!=", "<=", ">=", "if", "else", "while", "+", "-", "*", "/", "(", ")", "<", ">", "=", ";", "{", "}"};
 
 class TokenParser {
 public:
@@ -184,6 +186,7 @@ public:
     Node *rhs;
     long int val;
     long int offset;
+    std::vector<Node *> stmts;
 
     Node() = default;
 
@@ -246,9 +249,22 @@ public:
     void program() {
         int i = 0;
         while(!TokenParser::at_eof(token)) {
-            code[i++] = stmt();
+            code[i++] = block();
         }
         code[i] = nullptr;
+    }
+
+    Node *block() {
+        Node *node;
+        if(TokenParser::consume(&token, "{")) {
+            node = Node::new_node(ND_BLOCK);
+            while (!TokenParser::consume(&token, "}")) {
+                node->stmts.push_back(stmt());
+            }
+        }else {
+            node = stmt();
+        }
+        return node;
     }
 
     Node *stmt() {
@@ -258,11 +274,11 @@ public:
             node = Node::new_node(ND_IF);
             node->lhs = expr();
             TokenParser::expect(&token, ")");
-            Node *if_stmt = stmt();
+            Node *if_stmt = block();
             if(TokenParser::consume(&token, "else")) {
                 node->rhs = Node::new_node(ND_ELSE);
                 node->rhs->lhs = if_stmt;
-                node->rhs->rhs = stmt();
+                node->rhs->rhs = block();
             }else {
                 node->rhs = if_stmt;
             }
@@ -273,7 +289,7 @@ public:
             node = Node::new_node(ND_WHILE);
             node->lhs = expr();
             TokenParser::expect(&token, ")");
-            node->rhs = stmt();
+            node->rhs = block();
             return node;
         }
         if(TokenParser::consume(&token, TokenKind::TK_RETURN)) {
@@ -413,6 +429,14 @@ public:
 
     void gen(const Node *node, CodeGenerator &codegen) {
         switch(node->kind) {
+            case ND_BLOCK: {
+                codegen.COMMENT("block start");
+                for (const auto &stmt : node->stmts) {
+                    gen(stmt, codegen);
+                }
+                codegen.COMMENT("block end");
+                return;
+            }
             case ND_IF: {
                 codegen.COMMENT("if clause start");
                 gen(node->lhs, this->main_func);
