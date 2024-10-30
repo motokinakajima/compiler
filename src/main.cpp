@@ -61,5 +61,15 @@ int main(int argc, char *argv[]) {
     output << nodeParser.get_integrated_code();
     output.close();
 
+    std::string command = "cc " + outputFile + " -o a.out";
+    int result = std::system(command.c_str());
+
+    if (result != 0) {
+        std::cerr << "Error: Compilation failed with exit code " << result << std::endl;
+        return 1;
+    }
+
+    std::cout << "Compilation succeeded. Executable created as 'executable'" << std::endl;
+
     return 0;
 }
