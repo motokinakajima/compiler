@@ -6,7 +6,6 @@
 
 #include <iostream>
 #include <fstream>
-#include <iterator>
 #include "NodeParser.h"
 #include "CodeGenerator.h"
 
@@ -46,7 +45,7 @@ int main(int argc, char *argv[]) {
     //nodeParser.codegen.MOV("x29", "xzr");
     nodeParser.main_func.PUSH("x29");
     nodeParser.main_func.MOV("x29", "sp");
-    nodeParser.main_func.SUB("sp", "sp", "256");
+    nodeParser.main_func.SUB("sp", "sp", std::to_string(nodeParser.get_total_offset()).c_str());
 
     for(int i = 0; nodeParser.code[i]; i++) {
         nodeParser.gen(nodeParser.code[i], nodeParser.main_func);

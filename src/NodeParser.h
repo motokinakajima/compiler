@@ -408,6 +408,9 @@ public:
                 lvar->offset = this->locals->offset + 16;
                 node->offset = lvar->offset;
                 this->locals = lvar;
+                if(largest_offset <= lvar->offset) {
+                    this->largest_offset = lvar->offset;
+                }
             }
             return node;
         }
@@ -580,9 +583,14 @@ public:
         return code;
     }
 
+    long int get_total_offset() const {
+        return largest_offset;
+    }
+
 private:
     Token *token = {};
     const LVar *locals = LVar::new_var();
+    long int largest_offset = 0;
 };
 
 #endif //NODEPARSER_H
