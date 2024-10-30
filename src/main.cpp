@@ -52,6 +52,8 @@ int main(int argc, char *argv[]) {
         nodeParser.main_func.POP("x0");
     }
 
+    nodeParser.main_func.CODE(".extern _foo");
+
     std::ofstream output(outputFile);
     if (!output.is_open()) {
         std::cerr << "Error: Could not open output file " << outputFile << std::endl;
@@ -64,6 +66,8 @@ int main(int argc, char *argv[]) {
         std::cerr << "Error: Could not open pipe to compiler." << std::endl;
         return 1;
     }
+
+    std::cout<<nodeParser.get_integrated_code()<<std::endl;
 
     fwrite(nodeParser.get_integrated_code().c_str(), 1, nodeParser.get_integrated_code().size(), ccProcess);
 

@@ -192,6 +192,7 @@ public:
     long int val;
     long int offset;
     char *str;
+    unsigned long int len;
     std::vector<Node *> stmts;
 
     Node() = default;
@@ -429,6 +430,7 @@ public:
                 TokenParser::expect(&token, ")");
                 Node *node = Node::new_node(ND_FUNC);
                 node->str = tok->str;
+                node->len = tok->len;
                 node->lhs = Node::new_node(ND_NONE);
                 node->rhs = Node::new_node(ND_NONE);
                 return node;
@@ -478,6 +480,11 @@ public:
                 }
                 codegen.COMMENT("block end");
                 return;
+            }
+            case ND_FUNC:
+            {
+                const std::string str(node->str, node->len);
+                codegen.BL(str.c_str());
             }
             case ND_IF: {
                 codegen.COMMENT("if clause start");

@@ -16,9 +16,13 @@ public:
             code += ".global _" + label_name + "\n";
             code += "_" + label_name + ":\n";
         }else {
-            code += label_name + ":\n";
+            code += label_name + "\n";
         }
-    };
+    }
+
+    void CODE(const char *content) {
+        code += content;
+    }
 
     void ADD(const char *return_resistor, const char *first_input, const char *second_input) {
         code += "        add " + std::string(return_resistor) + ", " + std::string(first_input) + ", " + std::string(second_input) + "\n";
@@ -92,11 +96,18 @@ public:
         code += "        b " + std::string(label) + "\n";
     }
 
+    void BL(const char * func) {
+        code += "        bl _" + std::string(func) + "\n";
+    }
+
     void LABEL(const char* label) {
         code += "        " + std::string(label) + ":\n";
     }
 
     void RET() {
+        code += "        mov x0, #0\n";
+        code += "        mov x16, #1\n";
+        code += "        svc #0\n";
         code += "        ret\n";
     }
 
