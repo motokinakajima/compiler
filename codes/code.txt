@@ -1,9 +1,0 @@
-a = 0;
-b = 0;
-while(a < 4)
-{
-    a = a + 1;
-    b = b + a;
-}
-b = 20;
-return b;
