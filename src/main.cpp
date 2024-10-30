@@ -16,7 +16,7 @@ int main(int argc, char *argv[]) {
         return 1;
     }
 
-    std::string outputFile = "out.s";
+    std::string outputFile = "a.out";
     std::string inputFile;
 
     for (int i = 1; i < argc; ++i) {
@@ -58,18 +58,22 @@ int main(int argc, char *argv[]) {
         std::cerr << "Error: Could not open output file " << outputFile << std::endl;
         return 1;
     }
-    output << nodeParser.get_integrated_code();
-    output.close();
+    std::string command = "cc -x assembler - -o " + outputFile;
+    FILE* ccProcess = popen(command.c_str(), "w");
 
-    std::string command = "cc " + outputFile + " -o a.out";
-    int result = std::system(command.c_str());
+    if (!ccProcess) {
+        std::cerr << "Error: Could not open pipe to compiler." << std::endl;
+        return 1;
+    }
 
+    fwrite(nodeParser.get_integrated_code().c_str(), 1, nodeParser.get_integrated_code().size(), ccProcess);
+
+    int result = pclose(ccProcess);
     if (result != 0) {
         std::cerr << "Error: Compilation failed with exit code " << result << std::endl;
         return 1;
     }
 
-    std::cout << "Compilation succeeded. Executable created as 'executable'" << std::endl;
-
+    std::cout << "Compilation succeeded. Executable created as '" << outputFile << "'" << std::endl;
     return 0;
 }
