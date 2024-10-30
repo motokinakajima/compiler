@@ -30,7 +30,12 @@ enum NodeKind {
     ND_IF,
     ND_ELSE,
     ND_WHILE,
+    ND_FOR_1,
+    ND_FOR_2,
+    ND_FOR_3,
+    ND_FUNC,
     ND_BLOCK,
+    ND_NONE,
     ND_EQ,
     ND_NE,
     ND_LT,
@@ -58,7 +63,7 @@ public:
     }
 };
 
-std::string reserved[] = {"==", "!=", "<=", ">=", "if", "else", "while", "+", "-", "*", "/", "(", ")", "<", ">", "=", ";", "{", "}"};
+std::string reserved[] = {"==", "!=", "<=", ">=", "if", "else", "while", "for", "+", "-", "*", "/", "(", ")", "<", ">", "=", ";", "{", "}"};
 
 class TokenParser {
 public:
@@ -186,6 +191,7 @@ public:
     Node *rhs;
     long int val;
     long int offset;
+    char *str;
     std::vector<Node *> stmts;
 
     Node() = default;
@@ -291,6 +297,31 @@ public:
             node->rhs = block();
             return node;
         }
+        if(TokenParser::consume(&token, "for")) {
+            TokenParser::expect(&token, "(");
+            node = Node::new_node(ND_FOR_1);
+            node->rhs = Node::new_node(ND_FOR_2);
+            node->rhs->rhs = Node::new_node(ND_FOR_3);
+            if(!TokenParser::consume(&token, ";")) {
+                node->lhs = expr(); TokenParser::expect(&token, ";");
+            }else {
+                node->lhs = Node::new_node(ND_NONE);
+            }
+            if(!TokenParser::consume(&token, ";")) {
+                node->rhs->lhs = expr(); TokenParser::expect(&token, ";");
+            }else {
+                node->rhs->lhs = Node::new_node(ND_NONE);
+            }
+            if(!TokenParser::consume(&token, ")")) {
+                node->rhs->rhs->lhs = expr();
+                TokenParser::expect(&token, ")");
+                node->rhs->rhs->rhs = block();
+            }else {
+                node->rhs->rhs->lhs = Node::new_node(ND_NONE);
+                node->rhs->rhs->rhs = block();
+            }
+            return node;
+        }
         if(TokenParser::consume(&token, TokenKind::TK_RETURN)) {
             node = Node::new_node(ND_RETURN);
             node->lhs = expr();
@@ -394,6 +425,14 @@ public:
 
         const Token *tok = TokenParser::consume_ident(&token);
         if(tok) {
+            if(TokenParser::consume(&token, "(")) {
+                TokenParser::expect(&token, ")");
+                Node *node = Node::new_node(ND_FUNC);
+                node->str = tok->str;
+                node->lhs = Node::new_node(ND_NONE);
+                node->rhs = Node::new_node(ND_NONE);
+                return node;
+            }
             Node *node = Node::new_node(ND_LVAR);
 
             const LVar *lvar = LVar::find_lvar(tok, this->locals);
@@ -431,6 +470,7 @@ public:
 
     void gen(const Node *node, CodeGenerator &codegen) {
         switch(node->kind) {
+            case ND_NONE: return;
             case ND_BLOCK: {
                 codegen.COMMENT("block start");
                 for (const auto &stmt : node->stmts) {
@@ -506,6 +546,36 @@ public:
                 codegen.B(label_names[i].c_str());
                 codegen.LABEL(label_names[j].c_str());
                 codegen.COMMENT("while clause end");
+                return;
+            }
+
+            case ND_FOR_1: {
+                int i = 0;
+                for (; i < label_names.size() && !label_names[i].empty(); i++) {}
+                if (i == label_names.size()) {
+                    label_names.push_back(".Lbegin_" + std::to_string(i));
+                } else {
+                    label_names[i] = ".Lbegin_" + std::to_string(i);
+                }
+                int j = 0;
+                for (; j < label_names.size() && !label_names[j].empty(); j++) {}
+                if (j == label_names.size()) {
+                    label_names.push_back(".Lend_" + std::to_string(j));
+                } else {
+                    label_names[j] = ".Lend_" + std::to_string(j);
+                }
+                codegen.COMMENT("for clause start");
+                gen(node->lhs, this->main_func);
+                codegen.LABEL(label_names[i].c_str());
+                gen(node->rhs->lhs, this->main_func);
+                codegen.POP("x0");
+                codegen.CMP("x0", "0");
+                codegen.B_EQ(label_names[j].c_str());
+                gen(node->rhs->rhs->rhs, this->main_func);
+                gen(node->rhs->rhs->lhs, this->main_func);
+                codegen.B(label_names[i].c_str());
+                codegen.LABEL(label_names[j].c_str());
+                codegen.COMMENT("for clause end");
                 return;
             }
 
