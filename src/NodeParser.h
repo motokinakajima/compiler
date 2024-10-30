@@ -238,9 +238,9 @@ public:
 class NodeParser {
 public:
     CodeGenerator main_func = CodeGenerator("main", true);
-    CodeGenerator labels[100];
-    std::string label_names[100];
-    Node *code[100]{};
+    std::vector<CodeGenerator> labels;
+    std::vector<std::string> label_names;
+    std::vector<Node *> code;
 
     explicit NodeParser(Token &token) : token(&token) {
         program();
@@ -249,9 +249,8 @@ public:
     void program() {
         int i = 0;
         while(!TokenParser::at_eof(token)) {
-            code[i++] = block();
+            code.push_back(block());
         }
-        code[i] = nullptr;
     }
 
     Node *block() {
@@ -447,11 +446,19 @@ public:
                 codegen.CMP("x0", "0");
                 if(node->rhs->kind == ND_ELSE) {
                     int i = 0;
-                    for(;!label_names[i].empty();i++){}
-                    label_names[i] = ".Lelse_" + std::to_string(i);
+                    for (; i < label_names.size() && !label_names[i].empty(); i++) {}
+                    if (i == label_names.size()) {
+                        label_names.push_back(".Lelse_" + std::to_string(i));
+                    } else {
+                        label_names[i] = ".Lelse_" + std::to_string(i);
+                    }
                     int j = 0;
-                    for(;!label_names[j].empty();j++){}
-                    label_names[j] = ".Lend_" + std::to_string(j);
+                    for (; j < label_names.size() && !label_names[j].empty(); j++) {}
+                    if (j == label_names.size()) {
+                        label_names.push_back(".Lend_" + std::to_string(j));
+                    } else {
+                        label_names[j] = ".Lend_" + std::to_string(j);
+                    }
                     codegen.B_EQ(label_names[i].c_str());
                     gen(node->rhs->lhs, this->main_func);
                     codegen.B(label_names[j].c_str());
@@ -460,8 +467,12 @@ public:
                     codegen.LABEL(label_names[j].c_str());
                 }else {
                     int i = 0;
-                    for(;!label_names[i].empty();i++){}
-                    label_names[i] = ".Lend_" + std::to_string(i);
+                    for (; i < label_names.size() && !label_names[i].empty(); i++) {}
+                    if (i == label_names.size()) {
+                        label_names.push_back(".Lend_" + std::to_string(i));
+                    } else {
+                        label_names[i] = ".Lend_" + std::to_string(i);
+                    }
                     codegen.B_EQ(label_names[i].c_str());
                     gen(node->rhs, this->main_func);
                     codegen.LABEL(label_names[i].c_str());
@@ -472,11 +483,19 @@ public:
 
             case ND_WHILE: {
                 int i = 0;
-                for(;!label_names[i].empty();i++){}
-                label_names[i] = ".Lbegin_" + std::to_string(i);
+                for (; i < label_names.size() && !label_names[i].empty(); i++) {}
+                if (i == label_names.size()) {
+                    label_names.push_back(".Lbegin_" + std::to_string(i));
+                } else {
+                    label_names[i] = ".Lbegin_" + std::to_string(i);
+                }
                 int j = 0;
-                for(;!label_names[j].empty();j++){}
-                label_names[j] = ".Lend_" + std::to_string(j);
+                for (; j < label_names.size() && !label_names[j].empty(); j++) {}
+                if (j == label_names.size()) {
+                    label_names.push_back(".Lend_" + std::to_string(j));
+                } else {
+                    label_names[j] = ".Lend_" + std::to_string(j);
+                }
                 codegen.COMMENT("while clause start");
                 codegen.LABEL(label_names[i].c_str());
                 gen(node->lhs, this->main_func);
