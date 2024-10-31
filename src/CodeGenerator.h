@@ -105,7 +105,6 @@ public:
     }
 
     void RET() {
-        code += "        mov x0, #0\n";
         code += "        mov x16, #1\n";
         code += "        svc #0\n";
         code += "        ret\n";

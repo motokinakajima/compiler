@@ -63,7 +63,7 @@ public:
     }
 };
 
-std::string reserved[] = {"==", "!=", "<=", ">=", "if", "else", "while", "for", "+", "-", "*", "/", "(", ")", "<", ">", "=", ";", "{", "}"};
+std::string reserved[] = {"==", "!=", "<=", ">=", "if", "else", "while", "for", "+", "-", "*", "/", "(", ")", "<", ">", "=", ";", "{", "}", ","};
 
 class TokenParser {
 public:
@@ -105,9 +105,9 @@ public:
                 continue;
             }
 
-            if (isalpha(*p)) {
+            if (isalpha(*p) || *p == '_') {
                 char *start = p;  // Start of the identifier
-                while (isalpha(*p)) {   // Loop until you hit a non-alphabet character
+                while (isalpha(*p) || *p == '_') {   // Loop until you hit a non-alphabet character
                     p++;
                 }
                 cur = Token::new_token(TK_IDENT, cur, start, p - start);  // Create a new token with the full identifier
@@ -146,6 +146,20 @@ public:
         return true;
     }
 
+    static bool can_consume(Token **current, const char *op) {
+        if((*current)->kind != TK_RESERVED) {
+            return false;
+        }
+        if(strlen(op) != (*current)->len) {
+            return false;
+        }
+        const int is_equal = memcmp((*current)->str, op, (*current)->len);
+        if(is_equal != 0) {
+            return false;
+        }
+        return true;
+    }
+
     static Token *consume_ident(Token **current) {
         if((*current)->kind != TK_IDENT) {
             return nullptr;
@@ -180,7 +194,7 @@ public:
     }
 
     static bool is_alnum(const char c) {
-        return ('a' <= c && c <= 'z') || ('A' <= c && c <= 'Z') || ('0' <= c && c <= '9') || (c == '_');
+        return ('a' <= c && c <= 'z') || ('A' <= c && c <= 'Z') || ('0' <= c && c <= '9') || c == '_';
     }
 };
 
@@ -194,6 +208,7 @@ public:
     char *str;
     unsigned long int len;
     std::vector<Node *> stmts;
+    std::vector<Node *> args;
 
     Node() = default;
 
@@ -427,13 +442,22 @@ public:
         const Token *tok = TokenParser::consume_ident(&token);
         if(tok) {
             if(TokenParser::consume(&token, "(")) {
-                TokenParser::expect(&token, ")");
                 Node *node = Node::new_node(ND_FUNC);
                 node->str = tok->str;
                 node->len = tok->len;
                 node->lhs = Node::new_node(ND_NONE);
                 node->rhs = Node::new_node(ND_NONE);
-                return node;
+                if(TokenParser::consume(&token, ")")) {
+                    return node;
+                }
+                while(true) {
+                    node->args.push_back(equality());
+                    if(TokenParser::consume(&token, ")")) {
+                        return node;
+                    }else if(!TokenParser::consume(&token, ",")) {
+                        throw std::runtime_error("unexpected token");
+                    }
+                }
             }
             Node *node = Node::new_node(ND_LVAR);
 
@@ -483,8 +507,15 @@ public:
             }
             case ND_FUNC:
             {
+                codegen.COMMENT("func clause starts");
                 const std::string str(node->str, node->len);
+                for(int i = node->args.size() - 1; i >= 0; i--) {
+                    gen(node->args[i], codegen);
+                    codegen.POP("x0");
+                    codegen.MOV(("x" + std::to_string(i)).c_str(), "x0");
+                }
                 codegen.BL(str.c_str());
+                codegen.COMMENT("func clause end");
             }
             case ND_IF: {
                 codegen.COMMENT("if clause start");
