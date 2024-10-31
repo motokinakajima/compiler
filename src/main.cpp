@@ -112,4 +112,5 @@ int main(int argc, char *argv[]) {
     remove("basic_functions.o");
 
     std::cout << "Compilation succeeded. Executable created as '" << outputFile << "'" << std::endl;
+    return 0;
 }

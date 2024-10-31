@@ -11,5 +11,7 @@ add_executable(compiler
         src/NodeParser.h
         src/CodeGenerator.cpp
         src/CodeGenerator.h
-        src/basic_functions.cpp
+        src/NodeParser.cpp
+        src/NodeParser.cpp
+        src/NodeParser.cpp
 )
