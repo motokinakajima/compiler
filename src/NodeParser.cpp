@@ -431,9 +431,12 @@ void NodeParser::gen(const Node *node, CodeGenerator &codegen) {
                 for(int i = node->args.size() - 1; i >= 0; i--) {
                     gen(node->args[i], codegen);
                     codegen.POP("x0");
-                    codegen.MOV(("x" + std::to_string(i)).c_str(), "x0");
+                    if(i != 0) {
+                        codegen.MOV(("x" + std::to_string(i)).c_str(), "x0");
+                    }
                 }
                 codegen.BL(str.c_str());
+                codegen.POP("x0");
                 codegen.COMMENT("func clause end");
             }
             case ND_IF: {

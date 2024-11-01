@@ -15,6 +15,7 @@ const std::string basicFunctions = R"(
 
 extern "C" void basic_print(int a) {
     printf("%s\n", std::to_string(a).c_str());
+    return;
 }
 )";
 
