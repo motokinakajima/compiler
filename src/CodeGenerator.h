@@ -35,6 +35,12 @@ public:
 
     void LDR(const char *return_resistor, const char *address);
 
+    void STP(const char *return_resistor, const char *first_input, const char *second_input);
+
+    void STP_exclamation(const char *return_resistor, const char *first_input, const char *address);
+
+    void LDP(const char *return_resistor, const char *first_input, const char *second_input, const char *third_input);
+
     void MOV(const char *return_resistor, const char *value);
 
     void B_EQ(const char* label);

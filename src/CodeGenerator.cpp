@@ -59,6 +59,19 @@ void CodeGenerator::LDR(const char *return_resistor, const char *address) {
     code += "        ldr " + std::string(return_resistor) + ", [" + std::string(address) + "]\n";
 }
 
+void CodeGenerator::STP(const char *return_resistor, const char *first_input, const char *second_input) {
+    code += "        stp " + std::string(return_resistor) + ", " + std::string(first_input) + ", [" + std::string(second_input) + "]\n";
+}
+
+void CodeGenerator::STP_exclamation(const char *return_resistor, const char *first_input, const char *second_input) {
+    code += "        stp " + std::string(return_resistor) + ", " + std::string(first_input) + ", [" + std::string(second_input) + "]!\n";
+}
+
+void CodeGenerator::LDP(const char *return_resistor, const char *first_input, const char *second_input, const char *third_input) {
+    code += "        ldp " + std::string(return_resistor) + ", " + std::string(first_input) + ", " + std::string(second_input) + ", " + std::string(third_input) + "\n";
+}
+
+
 void CodeGenerator::MOV(const char *return_resistor, const char *value) {
     code += "        mov " + std::string(return_resistor) + ", " + std::string(value) + "\n";
 }

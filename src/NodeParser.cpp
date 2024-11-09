@@ -427,6 +427,8 @@ void NodeParser::gen(const Node *node, CodeGenerator &codegen) {
             case ND_FUNC:
             {
                 codegen.COMMENT("func clause starts");
+                codegen.STP_exclamation("x29", "x30", "sp, #-16");
+                codegen.MOV("x29", "sp");
                 const std::string str(node->str, node->len);
                 for(int i = node->args.size() - 1; i >= 0; i--) {
                     gen(node->args[i], codegen);
@@ -436,8 +438,11 @@ void NodeParser::gen(const Node *node, CodeGenerator &codegen) {
                     }
                 }
                 codegen.BL(str.c_str());
-                codegen.POP("x0");
+                codegen.MOV("sp", "x29");
+                codegen.LDP("x29", "x30", "[sp]", "#16");
+                codegen.RET();
                 codegen.COMMENT("func clause end");
+                return;
             }
             case ND_IF: {
                 codegen.COMMENT("if clause start");

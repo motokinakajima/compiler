@@ -112,6 +112,8 @@ int main(int argc, char *argv[]) {
     remove("temp.o");
     remove("basic_functions.o");
 
+    std::cout<<nodeParser.get_integrated_code()<<std::endl;
+
     std::cout << "Compilation succeeded. Executable created as '" << outputFile << "'" << std::endl;
     return 0;
 }
