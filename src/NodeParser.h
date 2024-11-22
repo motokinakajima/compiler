@@ -117,14 +117,16 @@ public:
 
 class NodeParser {
 public:
-    CodeGenerator main_func = CodeGenerator("main", true);
-    std::vector<CodeGenerator> labels;
+    //CodeGenerator main_func = CodeGenerator("main", true);
+    //std::vector<CodeGenerator> labels;
     std::vector<std::string> label_names;
     std::vector<Node *> code;
 
     explicit NodeParser(Token &token);
 
     void program();
+
+    Node *func();
 
     Node *block();
 
@@ -146,9 +148,9 @@ public:
 
     Node *primary();
 
-    static void gen_lval(const Node *node, CodeGenerator &codegen);
+    //static void gen_lval(const Node *node, CodeGenerator &codegen);
 
-    void gen(const Node *node, CodeGenerator &codegen);
+    //void gen(const Node *node, CodeGenerator &codegen);
 
     std::string get_integrated_code();
 

@@ -190,8 +190,36 @@ NodeParser::NodeParser(Token &token) : token(&token) {
 
 void NodeParser::program() {
     while(!TokenParser::at_eof(token)) {
-        code.push_back(block());
+        code.push_back(func());
     }
+}
+
+::Node *::NodeParser::func() {
+    const Token *tok = TokenParser::consume_ident(&token);
+    if (tok) {
+        if (TokenParser::consume(&token, "(")) {
+            Node *node = Node::new_node(ND_FUNC);
+            node->str = tok->str;
+            node->len = tok->len;
+            node->lhs = Node::new_node(ND_NONE);
+            node->rhs = Node::new_node(ND_NONE);
+            if (TokenParser::consume(&token, ")")) {
+                node->lhs = block();
+                return node;
+            }
+            while (true) {
+                node->args.push_back(equality());
+                if (TokenParser::consume(&token, ")")) {
+                    node->lhs = block();
+                    return node;
+                } else if (!TokenParser::consume(&token, ",")) {
+                    throw std::runtime_error("unexpected token");
+                }
+            }
+        }
+        throw std::runtime_error("unexpected token");
+    }
+    throw std::runtime_error("unexpected token");
 }
 
 ::Node *::NodeParser::block() {
@@ -400,7 +428,7 @@ void NodeParser::program() {
 
     return Node::new_num(TokenParser::expect_number(&token));
 }
-
+/*
 std::string NodeParser::get_integrated_code() {
     std::string code = this->main_func.get_code();
     for(auto & label : labels) {
@@ -408,6 +436,7 @@ std::string NodeParser::get_integrated_code() {
     }
     return code;
 }
+*/
 
 long int ::NodeParser::get_total_offset() const {
     return largest_offset;

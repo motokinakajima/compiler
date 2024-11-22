@@ -52,6 +52,8 @@ int main(int argc, char *argv[]) {
 
     NodeParser nodeParser(*token);
 
+    /*
+
     //nodeParser.codegen.MOV("x29", "xzr");
     nodeParser.main_func.PUSH("x29");
     nodeParser.main_func.MOV("x29", "sp");
@@ -115,5 +117,7 @@ int main(int argc, char *argv[]) {
     std::cout<<nodeParser.get_integrated_code()<<std::endl;
 
     std::cout << "Compilation succeeded. Executable created as '" << outputFile << "'" << std::endl;
+
+    */
     return 0;
 }
